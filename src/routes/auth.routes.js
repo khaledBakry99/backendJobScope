@@ -1,0 +1,49 @@
+const express = require("express");
+const { check } = require("express-validator");
+const authController = require("../controllers/auth.controller");
+const { protect } = require("../middleware/auth.middleware");
+
+const router = express.Router();
+
+// تسجيل مستخدم جديد
+router.post(
+  "/register",
+  [
+    check("name", "الاسم مطلوب")
+      .not()
+      .isEmpty(),
+    check("email", "يرجى إدخال بريد إلكتروني صالح").isEmail(),
+    check("password", "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل").isLength({
+      min: 6,
+    }),
+    check("userType", "نوع المستخدم مطلوب").isIn(["client", "craftsman"]),
+  ],
+  authController.register
+);
+
+// تسجيل الدخول
+router.post(
+  "/login",
+  [
+    check("email", "يرجى إدخال بريد إلكتروني أو رقم هاتف صالح").exists(),
+    check("password", "كلمة المرور مطلوبة").exists(),
+  ],
+  authController.login
+);
+
+// تسجيل الدخول كمدير
+router.post(
+  "/admin/login",
+  [
+    check("username", "اسم المستخدم مطلوب")
+      .not()
+      .isEmpty(),
+    check("password", "كلمة المرور مطلوبة").exists(),
+  ],
+  authController.adminLogin
+);
+
+// الحصول على المستخدم الحالي
+router.get("/me", protect, authController.getCurrentUser);
+
+module.exports = router;
