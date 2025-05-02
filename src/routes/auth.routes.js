@@ -46,4 +46,10 @@ router.post(
 // الحصول على المستخدم الحالي
 router.get("/me", protect, authController.getCurrentUser);
 
+// التحقق من وجود البريد الإلكتروني
+router.get("/check-email", authController.checkEmailExists);
+
+// التحقق من وجود رقم الهاتف
+router.get("/check-phone", authController.checkPhoneExists);
+
 module.exports = router;

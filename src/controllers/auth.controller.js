@@ -276,6 +276,32 @@ exports.getCurrentUser = asyncHandler(async (req, res) => {
   });
 });
 
+// التحقق من وجود البريد الإلكتروني
+exports.checkEmailExists = asyncHandler(async (req, res) => {
+  const { email } = req.query;
+
+  if (!email) {
+    return res.status(400).json({ message: "البريد الإلكتروني مطلوب" });
+  }
+
+  const user = await User.findOne({ email });
+
+  res.json({ exists: !!user });
+});
+
+// التحقق من وجود رقم الهاتف
+exports.checkPhoneExists = asyncHandler(async (req, res) => {
+  const { phone } = req.query;
+
+  if (!phone) {
+    return res.status(400).json({ message: "رقم الهاتف مطلوب" });
+  }
+
+  const user = await User.findOne({ phone });
+
+  res.json({ exists: !!user });
+});
+
 // تسجيل الدخول كمدير
 exports.adminLogin = asyncHandler(async (req, res) => {
   // التحقق من أخطاء التحقق
