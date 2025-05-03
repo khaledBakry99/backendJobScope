@@ -3,6 +3,9 @@ const { validationResult } = require("express-validator");
 const User = require("../models/user.model");
 const Craftsman = require("../models/craftsman.model");
 const { asyncHandler } = require("../middleware/error.middleware");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+const OTP = require("../models/otp.model");
 
 // توليد رمز JWT
 const generateToken = (id, userType) => {
@@ -300,6 +303,178 @@ exports.checkPhoneExists = asyncHandler(async (req, res) => {
   const user = await User.findOne({ phone });
 
   res.json({ exists: !!user });
+});
+
+// توليد رمز تحقق من 6 أرقام
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// إرسال رمز التحقق عبر البريد الإلكتروني
+const sendOTPByEmail = async (email, otp) => {
+  try {
+    // إنشاء ناقل بريد إلكتروني
+    const transporter = nodemailer.createTransport({
+      service: process.env.EMAIL_SERVICE || "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    // إعداد خيارات الرسالة
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || "JobScope <noreply@jobscope.com>",
+      to: email,
+      subject: "رمز التحقق من JobScope",
+      html: `
+        <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+          <h2 style="color: #3730A3; text-align: center;">JobScope - رمز التحقق</h2>
+          <p>مرحباً،</p>
+          <p>لقد طلبت رمز تحقق للتسجيل في تطبيق JobScope. رمز التحقق الخاص بك هو:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <div style="font-size: 24px; font-weight: bold; letter-spacing: 5px; padding: 10px; background-color: #f0f0f0; border-radius: 5px; display: inline-block;">${otp}</div>
+          </div>
+          <p>هذا الرمز صالح لمدة 10 دقائق فقط.</p>
+          <p>إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.</p>
+          <p style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #777;">
+            هذه رسالة آلية، يرجى عدم الرد عليها.
+          </p>
+        </div>
+      `,
+    };
+
+    // إرسال البريد الإلكتروني
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error("Error sending email:", error);
+    return false;
+  }
+};
+
+// إرسال رمز التحقق عبر رسالة نصية
+const sendOTPBySMS = async (phone, otp) => {
+  try {
+    // هنا يمكنك استخدام خدمة إرسال الرسائل النصية المفضلة لديك
+    // مثال: Twilio, Vonage, MessageBird, إلخ.
+
+    // في هذا المثال، سنقوم فقط بتسجيل الرمز في وحدة التحكم
+    console.log(`Sending OTP ${otp} to phone ${phone}`);
+
+    // محاكاة نجاح إرسال الرسالة
+    return true;
+  } catch (error) {
+    console.error("Error sending SMS:", error);
+    return false;
+  }
+};
+
+// إرسال رمز التحقق إلى البريد الإلكتروني
+exports.sendOtpToEmail = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "البريد الإلكتروني مطلوب" });
+  }
+
+  // التحقق من صحة البريد الإلكتروني
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ message: "البريد الإلكتروني غير صالح" });
+  }
+
+  // توليد رمز التحقق
+  const otp = generateOTP();
+
+  // حفظ رمز التحقق في قاعدة البيانات
+  await OTP.findOneAndDelete({ identifier: email }); // حذف أي رمز سابق
+  await OTP.create({ identifier: email, otp });
+
+  // إرسال رمز التحقق عبر البريد الإلكتروني
+  const sent = await sendOTPByEmail(email, otp);
+
+  if (sent) {
+    res.json({
+      success: true,
+      message: "تم إرسال رمز التحقق بنجاح إلى بريدك الإلكتروني",
+    });
+  } else {
+    res.status(500).json({
+      success: false,
+      message: "فشل في إرسال رمز التحقق، يرجى المحاولة مرة أخرى",
+    });
+  }
+});
+
+// إرسال رمز التحقق إلى رقم الهاتف
+exports.sendOtpToPhone = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+
+  if (!phone) {
+    return res.status(400).json({ message: "رقم الهاتف مطلوب" });
+  }
+
+  // التحقق من صحة رقم الهاتف (مثال لرقم هاتف سوري)
+  if (!/^(\+?963|0)?9\d{8}$/.test(phone)) {
+    return res.status(400).json({ message: "رقم الهاتف غير صالح" });
+  }
+
+  // توليد رمز التحقق
+  const otp = generateOTP();
+
+  // حفظ رمز التحقق في قاعدة البيانات
+  await OTP.findOneAndDelete({ identifier: phone }); // حذف أي رمز سابق
+  await OTP.create({ identifier: phone, otp });
+
+  // إرسال رمز التحقق عبر رسالة نصية
+  const sent = await sendOTPBySMS(phone, otp);
+
+  if (sent) {
+    res.json({
+      success: true,
+      message: "تم إرسال رمز التحقق بنجاح إلى رقم هاتفك",
+    });
+  } else {
+    res.status(500).json({
+      success: false,
+      message: "فشل في إرسال رمز التحقق، يرجى المحاولة مرة أخرى",
+    });
+  }
+});
+
+// التحقق من صحة رمز التحقق
+exports.verifyOtp = asyncHandler(async (req, res) => {
+  const { email, phone, otp } = req.body;
+
+  if (!otp) {
+    return res.status(400).json({ message: "رمز التحقق مطلوب" });
+  }
+
+  if (!email && !phone) {
+    return res
+      .status(400)
+      .json({ message: "البريد الإلكتروني أو رقم الهاتف مطلوب" });
+  }
+
+  const identifier = email || phone;
+
+  // البحث عن رمز التحقق في قاعدة البيانات
+  const otpRecord = await OTP.findOne({ identifier, otp });
+
+  if (!otpRecord) {
+    return res.status(400).json({
+      success: false,
+      message: "رمز التحقق غير صحيح أو منتهي الصلاحية",
+    });
+  }
+
+  // حذف رمز التحقق بعد التحقق منه
+  await OTP.deleteOne({ _id: otpRecord._id });
+
+  res.json({
+    success: true,
+    message: "تم التحقق من الرمز بنجاح",
+  });
 });
 
 // تسجيل الدخول كمدير

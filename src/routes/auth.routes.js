@@ -52,4 +52,13 @@ router.get("/check-email", authController.checkEmailExists);
 // التحقق من وجود رقم الهاتف
 router.get("/check-phone", authController.checkPhoneExists);
 
+// إرسال رمز التحقق إلى البريد الإلكتروني
+router.post("/send-otp-email", authController.sendOtpToEmail);
+
+// إرسال رمز التحقق إلى رقم الهاتف
+router.post("/send-otp-phone", authController.sendOtpToPhone);
+
+// التحقق من صحة رمز التحقق
+router.post("/verify-otp", authController.verifyOtp);
+
 module.exports = router;
