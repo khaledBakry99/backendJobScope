@@ -22,7 +22,18 @@ exports.register = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { name, email, password, phone, userType, address } = req.body;
+  const { name, email, password, phone, userType, address, profilePicture } = req.body;
+
+  // طباعة البيانات المستلمة للتشخيص
+  console.log("Registration data received:", {
+    name,
+    email,
+    phone,
+    userType,
+    address,
+    hasProfilePicture: !!profilePicture,
+    profilePictureLength: profilePicture ? profilePicture.length : 0
+  });
 
   // التحقق مما إذا كان المستخدم موجودًا بالفعل
   const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
@@ -35,6 +46,40 @@ exports.register = asyncHandler(async (req, res) => {
     });
   }
 
+  // معالجة الصورة الشخصية إذا كانت موجودة
+  let profilePicturePath = '';
+  if (profilePicture) {
+    // التحقق مما إذا كانت الصورة بتنسيق base64
+    if (profilePicture.startsWith('data:image')) {
+      // تحويل الصورة من base64 إلى ملف
+      const base64Data = profilePicture.replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      // إنشاء اسم فريد للملف
+      const filename = `profile-${Date.now()}.png`;
+      const filePath = `uploads/${filename}`;
+
+      // التأكد من وجود المجلد
+      const fs = require('fs');
+      const path = require('path');
+      const uploadDir = path.join(process.cwd(), 'uploads');
+
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      // حفظ الملف
+      fs.writeFileSync(path.join(process.cwd(), filePath), buffer);
+
+      // تعيين مسار الصورة
+      profilePicturePath = `/${filePath}`;
+      console.log("Saved profile picture to:", profilePicturePath);
+    } else {
+      // إذا كانت الصورة عبارة عن URL، نستخدمها مباشرة
+      profilePicturePath = profilePicture;
+    }
+  }
+
   // إنشاء مستخدم جديد
   const user = new User({
     name,
@@ -43,6 +88,7 @@ exports.register = asyncHandler(async (req, res) => {
     phone,
     userType,
     address,
+    profilePicture: profilePicturePath,
   });
 
   await user.save();
@@ -414,8 +460,16 @@ exports.sendOtpToPhone = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "رقم الهاتف مطلوب" });
   }
 
-  // التحقق من صحة رقم الهاتف (مثال لرقم هاتف سوري)
-  if (!/^(\+?963|0)?9\d{8}$/.test(phone)) {
+  // التحقق من صحة رقم الهاتف (سوري أو أمريكي)
+  if (phone.startsWith("+1") || phone.startsWith("1")) {
+    // التحقق من رقم الهاتف الأمريكي
+    // يجب أن يتكون من 10 أرقام (منطقة 3 أرقام + 7 أرقام) بعد رمز الدولة
+    const phoneWithoutCode = phone.replace(/^\+?1/, "").trim();
+    if (!/^\d{10}$/.test(phoneWithoutCode)) {
+      return res.status(400).json({ message: "رقم الهاتف الأمريكي غير صالح" });
+    }
+  } else if (!/^(\+?963|0)?9\d{8}$/.test(phone)) {
+    // التحقق من رقم الهاتف السوري
     return res.status(400).json({ message: "رقم الهاتف غير صالح" });
   }
 

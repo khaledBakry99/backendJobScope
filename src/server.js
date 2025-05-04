@@ -30,7 +30,16 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" })); // تحليل ب
 app.use(morgan("dev")); // تسجيل الطلبات
 
 // تكوين المجلد الثابت للملفات المحملة
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+const uploadsPath = path.join(__dirname, "../uploads");
+console.log("Serving uploads from:", uploadsPath);
+app.use("/uploads", express.static(uploadsPath));
+
+// التأكد من وجود مجلد التحميل
+const fs = require("fs");
+if (!fs.existsSync(uploadsPath)) {
+  console.log("Creating uploads directory");
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
 
 // مسارات API
 app.use("/api/auth", require("./routes/auth.routes"));

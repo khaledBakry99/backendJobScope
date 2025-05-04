@@ -5,13 +5,15 @@ const fs = require('fs');
 // Configurar almacenamiento
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = 'uploads/';
-    
+    // Usar ruta absoluta para el directorio de uploads
+    const uploadDir = path.join(process.cwd(), 'uploads');
+
     // Crear directorio si no existe
     if (!fs.existsSync(uploadDir)) {
+      console.log("Creating uploads directory from middleware:", uploadDir);
       fs.mkdirSync(uploadDir, { recursive: true });
     }
-    
+
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
@@ -47,10 +49,10 @@ const upload = multer({
 module.exports = {
   // Middleware para subir una sola imagen
   uploadSingleImage: (fieldName) => upload.single(fieldName),
-  
+
   // Middleware para subir múltiples imágenes
   uploadMultipleImages: (fieldName, maxCount) => upload.array(fieldName, maxCount),
-  
+
   // Middleware para subir múltiples campos
   uploadFields: (fields) => upload.fields(fields),
 };

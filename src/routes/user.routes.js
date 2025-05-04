@@ -40,8 +40,17 @@ router.post('/upload-profile-image', uploadSingleImage('profileImage'), (req, re
   if (!req.file) {
     return res.status(400).json({ message: 'No se ha subido ninguna imagen' });
   }
-  
+
+  // Registrar información sobre el archivo subido
+  console.log("Archivo subido:", {
+    originalname: req.file.originalname,
+    filename: req.file.filename,
+    path: req.file.path,
+    size: req.file.size
+  });
+
   const imageUrl = `/uploads/${req.file.filename}`;
+  console.log("URL de imagen generada:", imageUrl);
   res.json({ imageUrl });
 });
 

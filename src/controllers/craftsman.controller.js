@@ -11,7 +11,19 @@ exports.getAllCraftsmen = asyncHandler(async (req, res) => {
     .populate("user", "name email phone profilePicture")
     .sort({ createdAt: -1 });
 
-  res.json(craftsmen);
+  // تحويل البيانات إلى كائنات عادية للتعديل
+  const craftsmenWithImages = craftsmen.map((craftsman) => {
+    const craftsmanObj = craftsman.toObject();
+
+    // إضافة حقل الصورة من بيانات المستخدم إذا كانت متوفرة
+    if (craftsmanObj.user && craftsmanObj.user.profilePicture) {
+      craftsmanObj.image = craftsmanObj.user.profilePicture;
+    }
+
+    return craftsmanObj;
+  });
+
+  res.json(craftsmenWithImages);
 });
 
 // Obtener un artesano por ID
@@ -34,9 +46,30 @@ exports.getCraftsmanById = asyncHandler(async (req, res) => {
     hospitalsInWorkRange: craftsman.hospitalsInWorkRange,
     mosquesInWorkRange: craftsman.mosquesInWorkRange,
     neighborhoodsInWorkRange: craftsman.neighborhoodsInWorkRange,
+    user: craftsman.user
+      ? {
+          id: craftsman.user._id,
+          profilePicture: craftsman.user.profilePicture,
+        }
+      : null,
   });
 
-  res.json(craftsman);
+  // تحويل البيانات إلى كائن عادي للتعديل
+  const craftsmanObj = craftsman.toObject();
+
+  // إضافة حقل الصورة من بيانات المستخدم إذا كانت متوفرة
+  if (
+    craftsmanObj.user &&
+    craftsmanObj.user.profilePicture &&
+    craftsmanObj.user.profilePicture !== ""
+  ) {
+    craftsmanObj.image = craftsmanObj.user.profilePicture;
+  } else {
+    // استخدام صورة افتراضية إذا لم تكن هناك صورة
+    craftsmanObj.image = "/img/user-avatar.svg";
+  }
+
+  res.json(craftsmanObj);
 });
 
 // Obtener perfil de artesano del usuario actual
@@ -52,7 +85,22 @@ exports.getMyProfile = asyncHandler(async (req, res) => {
       .json({ message: "Perfil de artesano no encontrado" });
   }
 
-  res.json(craftsman);
+  // تحويل البيانات إلى كائن عادي للتعديل
+  const craftsmanObj = craftsman.toObject();
+
+  // إضافة حقل الصورة من بيانات المستخدم إذا كانت متوفرة
+  if (
+    craftsmanObj.user &&
+    craftsmanObj.user.profilePicture &&
+    craftsmanObj.user.profilePicture !== ""
+  ) {
+    craftsmanObj.image = craftsmanObj.user.profilePicture;
+  } else {
+    // استخدام صورة افتراضية إذا لم تكن هناك صورة
+    craftsmanObj.image = "/img/user-avatar.svg";
+  }
+
+  res.json(craftsmanObj);
 });
 
 // Buscar artesanos
@@ -211,7 +259,26 @@ exports.searchCraftsmen = asyncHandler(async (req, res) => {
     }
   }
 
-  res.json(craftsmen);
+  // تحويل البيانات إلى كائنات عادية للتعديل
+  const craftsmenWithImages = craftsmen.map((craftsman) => {
+    const craftsmanObj = craftsman.toObject();
+
+    // إضافة حقل الصورة من بيانات المستخدم إذا كانت متوفرة
+    if (
+      craftsmanObj.user &&
+      craftsmanObj.user.profilePicture &&
+      craftsmanObj.user.profilePicture !== ""
+    ) {
+      craftsmanObj.image = craftsmanObj.user.profilePicture;
+    } else {
+      // استخدام صورة افتراضية إذا لم تكن هناك صورة
+      craftsmanObj.image = "/img/user-avatar.svg";
+    }
+
+    return craftsmanObj;
+  });
+
+  res.json(craftsmenWithImages);
 });
 
 // Actualizar perfil de artesano
@@ -343,7 +410,22 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
 
   await craftsman.save();
 
-  res.json(craftsman);
+  // تحويل البيانات إلى كائن عادي للتعديل
+  const craftsmanObj = craftsman.toObject();
+
+  // إضافة حقل الصورة من بيانات المستخدم إذا كانت متوفرة
+  if (
+    craftsmanObj.user &&
+    craftsmanObj.user.profilePicture &&
+    craftsmanObj.user.profilePicture !== ""
+  ) {
+    craftsmanObj.image = craftsmanObj.user.profilePicture;
+  } else {
+    // استخدام صورة افتراضية إذا لم تكن هناك صورة
+    craftsmanObj.image = "/img/user-avatar.svg";
+  }
+
+  res.json(craftsmanObj);
 });
 
 // Actualizar galería de trabajos
@@ -369,7 +451,22 @@ exports.updateWorkGallery = asyncHandler(async (req, res) => {
   craftsman.workGallery = workGallery;
   await craftsman.save();
 
-  res.json(craftsman);
+  // تحويل البيانات إلى كائن عادي للتعديل
+  const craftsmanObj = craftsman.toObject();
+
+  // إضافة حقل الصورة من بيانات المستخدم إذا كانت متوفرة
+  if (
+    craftsmanObj.user &&
+    craftsmanObj.user.profilePicture &&
+    craftsmanObj.user.profilePicture !== ""
+  ) {
+    craftsmanObj.image = craftsmanObj.user.profilePicture;
+  } else {
+    // استخدام صورة افتراضية إذا لم تكن هناك صورة
+    craftsmanObj.image = "/img/user-avatar.svg";
+  }
+
+  res.json(craftsmanObj);
 });
 
 // Actualizar disponibilidad
