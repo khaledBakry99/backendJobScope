@@ -55,8 +55,21 @@ app.use("/uploads", (req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-  next();
-}, express.static(uploadsPath));
+
+  // معالجة الخطأ
+  try {
+    next();
+  } catch (error) {
+    console.error("Error serving static file:", error);
+    res.status(404).send("File not found");
+  }
+}, express.static(uploadsPath, {
+  fallthrough: false, // إرجاع خطأ 404 بدلاً من الاستمرار
+  setHeaders: (res) => {
+    res.set('Cache-Control', 'public, max-age=31536000'); // تخزين مؤقت لمدة سنة
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
 
 // التأكد من وجود مجلد التحميل
 const fs = require("fs");
