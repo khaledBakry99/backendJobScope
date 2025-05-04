@@ -481,74 +481,148 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
 exports.registerFirebaseUser = asyncHandler(async (req, res) => {
   const { uid, name, phone, email, userType, googleId, image } = req.body;
 
+  // طباعة البيانات المستلمة للتشخيص
+  console.log("Firebase user registration request received:", {
+    uid,
+    name,
+    email,
+    phone,
+    userType,
+    googleId,
+    hasImage: !!image
+  });
+
   if (!uid) {
     return res.status(400).json({ message: "معرف Firebase مطلوب" });
   }
 
-  // التحقق مما إذا كان المستخدم موجودًا بالفعل
-  let user = await User.findOne({ firebaseUid: uid });
+  try {
+    // التحقق مما إذا كان المستخدم موجودًا بالفعل
+    let user = null;
 
-  if (user) {
-    // إذا كان المستخدم موجودًا بالفعل، قم بتحديث بياناته
-    user.name = name || user.name;
-    user.phone = phone || user.phone;
-    user.email = email || user.email;
-    user.googleId = googleId || user.googleId;
-    user.profilePicture = image || user.profilePicture;
+    // البحث عن المستخدم باستخدام معرف Firebase أو معرف Google أو البريد الإلكتروني
+    if (uid) {
+      user = await User.findOne({ firebaseUid: uid });
+    }
 
-    await user.save();
-  } else {
-    // إنشاء مستخدم جديد
-    user = new User({
-      name,
-      phone,
-      email,
-      userType,
-      firebaseUid: uid,
-      googleId,
-      profilePicture: image,
-      isActive: true,
-      // لا نحتاج لكلمة مرور لأن المصادقة تتم عبر Firebase
-      password: Math.random()
-        .toString(36)
-        .substring(2),
-    });
+    if (!user && googleId) {
+      user = await User.findOne({ googleId: googleId });
+    }
 
-    await user.save();
+    if (!user && email) {
+      user = await User.findOne({ email: email });
+    }
 
-    // إذا كان المستخدم حرفيًا، قم بإنشاء ملف تعريف للحرفي
-    if (userType === "craftsman") {
-      const craftsman = new Craftsman({
-        user: user._id,
-        professions: [],
-        specializations: [],
-        workRadius: 5,
-        location: { lat: 33.5138, lng: 36.2765 }, // Damascus, Syria (default)
-        bio: "",
+    if (user) {
+      console.log("Existing user found:", user._id.toString());
+      // إذا كان المستخدم موجودًا بالفعل، قم بتحديث بياناته
+      user.name = name || user.name;
+      user.phone = phone || user.phone;
+      user.email = email || user.email;
+
+      // تأكد من تحديث معرفات المصادقة إذا لم تكن موجودة
+      if (googleId && !user.googleId) {
+        user.googleId = googleId;
+      }
+
+      if (uid && !user.firebaseUid) {
+        user.firebaseUid = uid;
+      }
+
+      if (image) {
+        user.profilePicture = image;
+      }
+
+      await user.save();
+      console.log("User updated successfully");
+    } else {
+      console.log("Creating new user");
+      // إنشاء مستخدم جديد
+      user = new User({
+        name,
+        phone: phone || "",
+        email: email || "",
+        userType,
+        firebaseUid: uid,
+        googleId,
+        profilePicture: image || "",
+        isActive: true,
+        // لا نحتاج لكلمة مرور لأن المصادقة تتم عبر Firebase
+        password: Math.random()
+          .toString(36)
+          .substring(2) + Math.random().toString(36).substring(2),
       });
 
-      await craftsman.save();
+      await user.save();
+      console.log("New user created with ID:", user._id.toString());
+
+      // إذا كان المستخدم حرفيًا، قم بإنشاء ملف تعريف للحرفي
+      if (userType === "craftsman") {
+        const craftsman = new Craftsman({
+          user: user._id,
+          professions: [],
+          specializations: [],
+          workRadius: 5,
+          location: { lat: 33.5138, lng: 36.2765 }, // Damascus, Syria (default)
+          bio: "",
+        });
+
+        await craftsman.save();
+        console.log("Craftsman profile created");
+      }
     }
+
+    // توليد الرمز المميز
+    const token = generateToken(user._id, user.userType);
+
+    // إذا كان المستخدم حرفيًا، قم بجلب معلومات الحرفي
+    let craftsmanInfo = null;
+    if (user.userType === "craftsman") {
+      craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
+        "professions specializations workRadius location bio streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange"
+      );
+    }
+
+    // إعداد بيانات المستخدم للإرجاع
+    let userData = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      userType: user.userType,
+      profilePicture: user.profilePicture,
+    };
+
+    // إذا كان المستخدم حرفيًا، قم بدمج معلومات الحرفي مع معلومات المستخدم
+    if (craftsmanInfo) {
+      userData = {
+        ...userData,
+        professions: craftsmanInfo.professions,
+        specializations: craftsmanInfo.specializations,
+        workRadius: craftsmanInfo.workRadius,
+        location: craftsmanInfo.location,
+        bio: craftsmanInfo.bio,
+        streetsInWorkRange: craftsmanInfo.streetsInWorkRange,
+        hospitalsInWorkRange: craftsmanInfo.hospitalsInWorkRange,
+        mosquesInWorkRange: craftsmanInfo.mosquesInWorkRange,
+        neighborhoodsInWorkRange: craftsmanInfo.neighborhoodsInWorkRange,
+      };
+    }
+
+    console.log("User authenticated successfully, returning data");
+
+    res.status(201).json({
+      token,
+      user: userData,
+      expiresIn: "30d",
+    });
+  } catch (error) {
+    console.error("Error in registerFirebaseUser:", error);
+    res.status(500).json({
+      message: "حدث خطأ أثناء تسجيل المستخدم",
+      error: error.message
+    });
   }
-
-  // توليد الرمز المميز
-  const token = generateToken(user._id, user.userType);
-
-  // إعداد بيانات المستخدم للإرجاع
-  const userData = {
-    id: user._id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    userType: user.userType,
-    profilePicture: user.profilePicture,
-  };
-
-  res.status(201).json({
-    token,
-    user: userData,
-    expiresIn: "30d",
-  });
 });
 
 // تسجيل الدخول كمدير

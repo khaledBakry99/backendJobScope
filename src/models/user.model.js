@@ -14,6 +14,14 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       sparse: true,
       index: true,
+      // السماح بالبريد الإلكتروني الفارغ للمستخدمين الذين يسجلون باستخدام رقم الهاتف فقط
+      validate: {
+        validator: function(v) {
+          // إذا كان البريد الإلكتروني فارغًا، تحقق من وجود رقم هاتف أو معرف Firebase
+          return !v || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
+        },
+        message: props => `${props.value} ليس بريدًا إلكترونيًا صالحًا`
+      }
     },
     password: {
       type: String,
@@ -65,22 +73,35 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Hash de la contraseña antes de guardar
+// تشفير كلمة المرور قبل الحفظ
 userSchema.pre("save", async function(next) {
+  // تخطي تشفير كلمة المرور إذا لم يتم تعديلها
   if (!this.isModified("password")) return next();
 
   try {
+    // طباعة معلومات تشخيصية
+    console.log(`Hashing password for user: ${this._id || 'new user'}`);
+
+    // تشفير كلمة المرور
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+
+    console.log("Password hashed successfully");
     next();
   } catch (error) {
+    console.error("Error hashing password:", error);
     next(error);
   }
 });
 
-// Método para comparar contraseñas
+// دالة لمقارنة كلمات المرور
 userSchema.methods.comparePassword = async function(password) {
-  return await bcrypt.compare(password, this.password);
+  try {
+    return await bcrypt.compare(password, this.password);
+  } catch (error) {
+    console.error("Error comparing passwords:", error);
+    return false;
+  }
 };
 
 const User = mongoose.model("User", userSchema);
