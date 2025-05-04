@@ -21,8 +21,25 @@ const app = express();
 connectDB();
 
 // الوسائط
-app.use(helmet()); // أمان HTTP
-app.use(cors()); // تمكين CORS
+// تكوين Helmet مع السماح بالصور من مصادر مختلفة
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false,
+  })
+);
+
+// تكوين CORS للسماح بالوصول من أي مصدر
+app.use(
+  cors({
+    origin: "*",
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    preflightContinue: false,
+    optionsSuccessStatus: 200,
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // زيادة حجم الطلب المسموح به لمعالجة البيانات الكبيرة
 app.use(express.json({ limit: "50mb" })); // تحليل JSON
@@ -32,7 +49,14 @@ app.use(morgan("dev")); // تسجيل الطلبات
 // تكوين المجلد الثابت للملفات المحملة
 const uploadsPath = path.join(__dirname, "../uploads");
 console.log("Serving uploads from:", uploadsPath);
-app.use("/uploads", express.static(uploadsPath));
+
+// إضافة رؤوس CORS للملفات المحملة
+app.use("/uploads", (req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+}, express.static(uploadsPath));
 
 // التأكد من وجود مجلد التحميل
 const fs = require("fs");
