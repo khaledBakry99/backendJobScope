@@ -477,6 +477,80 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
   });
 });
 
+// تسجيل مستخدم تم إنشاؤه باستخدام Firebase
+exports.registerFirebaseUser = asyncHandler(async (req, res) => {
+  const { uid, name, phone, email, userType, googleId, image } = req.body;
+
+  if (!uid) {
+    return res.status(400).json({ message: "معرف Firebase مطلوب" });
+  }
+
+  // التحقق مما إذا كان المستخدم موجودًا بالفعل
+  let user = await User.findOne({ firebaseUid: uid });
+
+  if (user) {
+    // إذا كان المستخدم موجودًا بالفعل، قم بتحديث بياناته
+    user.name = name || user.name;
+    user.phone = phone || user.phone;
+    user.email = email || user.email;
+    user.googleId = googleId || user.googleId;
+    user.profilePicture = image || user.profilePicture;
+
+    await user.save();
+  } else {
+    // إنشاء مستخدم جديد
+    user = new User({
+      name,
+      phone,
+      email,
+      userType,
+      firebaseUid: uid,
+      googleId,
+      profilePicture: image,
+      isActive: true,
+      // لا نحتاج لكلمة مرور لأن المصادقة تتم عبر Firebase
+      password: Math.random()
+        .toString(36)
+        .substring(2),
+    });
+
+    await user.save();
+
+    // إذا كان المستخدم حرفيًا، قم بإنشاء ملف تعريف للحرفي
+    if (userType === "craftsman") {
+      const craftsman = new Craftsman({
+        user: user._id,
+        professions: [],
+        specializations: [],
+        workRadius: 5,
+        location: { lat: 33.5138, lng: 36.2765 }, // Damascus, Syria (default)
+        bio: "",
+      });
+
+      await craftsman.save();
+    }
+  }
+
+  // توليد الرمز المميز
+  const token = generateToken(user._id, user.userType);
+
+  // إعداد بيانات المستخدم للإرجاع
+  const userData = {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    userType: user.userType,
+    profilePicture: user.profilePicture,
+  };
+
+  res.status(201).json({
+    token,
+    user: userData,
+    expiresIn: "30d",
+  });
+});
+
 // تسجيل الدخول كمدير
 exports.adminLogin = asyncHandler(async (req, res) => {
   // التحقق من أخطاء التحقق
