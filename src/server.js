@@ -45,6 +45,7 @@ app.use(
       "Origin",
       "X-Requested-With",
       "Accept",
+      "X-Client-Info",
     ],
     exposedHeaders: ["Content-Length", "Content-Range"],
   })
@@ -56,7 +57,7 @@ app.use((req, res, next) => {
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.header(
     "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Client-Info"
   );
   res.header("Cross-Origin-Resource-Policy", "cross-origin");
   res.header("Access-Control-Expose-Headers", "Content-Length, Content-Range");
