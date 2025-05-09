@@ -215,7 +215,7 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { status } = req.body;
+  const { status, canEdit, visibleToCraftsman } = req.body;
 
   // Verificar estado válido
   const validStatuses = ['pending', 'accepted', 'rejected', 'completed', 'cancelled'];
@@ -270,8 +270,37 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
     }
   }
 
-  // Actualizar estado
+  // تحديث حالة الطلب
   booking.status = status;
+
+  // تحديث إمكانية التعديل إذا تم توفيرها
+  if (canEdit !== undefined) {
+    booking.canEdit = canEdit;
+  }
+
+  // تحديث رؤية الطلب للحرفي إذا تم توفيرها
+  if (visibleToCraftsman !== undefined) {
+    booking.visibleToCraftsman = visibleToCraftsman;
+
+    // إذا تم جعل الطلب مرئي للحرفي، نقوم بإنشاء إشعار إضافي للحرفي
+    if (visibleToCraftsman === true) {
+      const client = await User.findById(booking.client);
+
+      const notification = new Notification({
+        user: booking.craftsman.user._id,
+        type: 'booking_created',
+        title: 'طلب خدمة جديد',
+        message: `لديك طلب خدمة جديد من ${client.name}`,
+        data: {
+          bookingId: booking._id,
+        },
+        icon: 'clipboard-list',
+      });
+
+      await notification.save();
+    }
+  }
+
   await booking.save();
 
   // Crear notificación
