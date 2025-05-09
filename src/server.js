@@ -140,10 +140,17 @@ app.use(errorHandler);
 // تحديد المنفذ
 const PORT = process.env.PORT || 5000;
 
+// استيراد مجدول المهام
+const { startCronJobs } = require('./cron/bookingCron');
+
 // بدء الخادم
 app.listen(PORT, () => {
   console.log(
     `الخادم يعمل في البيئة ${process.env.NODE_ENV} على المنفذ ${PORT}`
   );
   console.log(`CORS مفعل للسماح بالوصول من أي مصدر`);
+
+  // بدء تشغيل مجدول المهام
+  startCronJobs();
+  console.log('تم بدء تشغيل مجدول المهام لتحديث الطلبات المنتهية');
 });

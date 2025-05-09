@@ -5,6 +5,56 @@ const User = require('../models/user.model');
 const Notification = require('../models/notification.model');
 const { asyncHandler } = require('../middleware/error.middleware');
 
+// وظيفة لتحديث حالة الطلبات التي انتهت فترة التعديل الخاصة بها (10 دقائق)
+const updateExpiredBookings = async () => {
+  try {
+    // حساب الوقت قبل 10 دقائق
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+
+    // البحث عن الطلبات التي تم إنشاؤها قبل 10 دقائق وما زالت قابلة للتعديل وغير مرئية للحرفي
+    const expiredBookings = await Booking.find({
+      createdAt: { $lt: tenMinutesAgo },
+      canEdit: true,
+      visibleToCraftsman: false,
+      status: 'pending'
+    });
+
+    console.log(`تم العثور على ${expiredBookings.length} طلب منتهي الصلاحية`);
+
+    // تحديث كل طلب وإنشاء إشعار للحرفي
+    for (const booking of expiredBookings) {
+      // تحديث الطلب
+      booking.canEdit = false;
+      booking.visibleToCraftsman = true;
+      await booking.save();
+
+      // إنشاء إشعار للحرفي
+      const craftsman = await Craftsman.findById(booking.craftsman).populate('user');
+      const client = await User.findById(booking.client);
+
+      if (craftsman && craftsman.user) {
+        const notification = new Notification({
+          user: craftsman.user._id,
+          type: 'booking_created',
+          title: 'طلب خدمة جديد',
+          message: `لديك طلب خدمة جديد من ${client.name}`,
+          data: {
+            bookingId: booking._id,
+          },
+          icon: 'clipboard-list',
+        });
+
+        await notification.save();
+      }
+    }
+
+    return expiredBookings.length;
+  } catch (error) {
+    console.error('خطأ في تحديث الطلبات المنتهية:', error);
+    return 0;
+  }
+};
+
 // Crear una nueva reserva
 exports.createBooking = asyncHandler(async (req, res) => {
   // Verificar errores de validación
@@ -37,23 +87,12 @@ exports.createBooking = asyncHandler(async (req, res) => {
     location,
     description,
     status: 'pending',
+    visibleToCraftsman: false, // الطلب غير مرئي للحرفي عند إنشائه
   });
 
   await booking.save();
 
-  // Crear notificación para el artesano
-  const notification = new Notification({
-    user: craftsman.user._id,
-    type: 'booking_created',
-    title: 'Nueva solicitud de servicio',
-    message: `Has recibido una nueva solicitud de servicio de ${req.user.name}`,
-    data: {
-      bookingId: booking._id,
-    },
-    icon: 'clipboard-list',
-  });
-
-  await notification.save();
+  // لا نقوم بإنشاء إشعار للحرفي هنا، سيتم إنشاؤه فقط عند تأكيد الطلب
 
   // Obtener la reserva con datos completos para enviar al cliente
   const populatedBooking = await Booking.findById(booking._id)
@@ -94,14 +133,18 @@ exports.getMyBookings = asyncHandler(async (req, res) => {
       .populate('reviewId')
       .sort({ createdAt: -1 });
   } else if (req.user.userType === 'craftsman') {
-    // Si es artesano, obtener las reservas donde es el artesano
+    // Si es artesano, obtener las reservas donde es el artesano y son visibles para el حرفي
     const craftsmanProfile = await Craftsman.findOne({ user: req.user._id });
 
     if (!craftsmanProfile) {
       return res.status(404).json({ message: 'Perfil de artesano no encontrado' });
     }
 
-    bookings = await Booking.find({ craftsman: craftsmanProfile._id })
+    // فقط الطلبات المرئية للحرفي
+    bookings = await Booking.find({
+      craftsman: craftsmanProfile._id,
+      visibleToCraftsman: true // فقط الطلبات المرئية للحرفي
+    })
       .populate('client', 'name phone profilePicture')
       .populate({
         path: 'craftsman',
@@ -356,23 +399,24 @@ exports.confirmBooking = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Solo se pueden confirmar reservas pendientes' });
   }
 
-  // Marcar la reserva como confirmada (no cambia el estado, solo se envía inmediatamente)
-  booking.canEdit = false; // Deshabilitar la edición
+  // تحديث الطلب ليكون مرئي للحرفي وغير قابل للتعديل
+  booking.canEdit = false; // تعطيل إمكانية التعديل
+  booking.visibleToCraftsman = true; // جعل الطلب مرئي للحرفي
   await booking.save();
 
-  // Crear notificación para el artesano
+  // إنشاء إشعار للحرفي
   const craftsman = await Craftsman.findById(booking.craftsman).populate('user');
 
   if (craftsman && craftsman.user) {
     const notification = new Notification({
       user: craftsman.user._id,
-      type: 'booking_confirmed',
-      title: 'تم تأكيد طلب الخدمة',
-      message: `تم تأكيد طلب الخدمة من ${req.user.name} وإرساله إليك فورًا`,
+      type: 'booking_created',
+      title: 'طلب خدمة جديد',
+      message: `لديك طلب خدمة جديد من ${req.user.name}`,
       data: {
         bookingId: booking._id,
       },
-      icon: 'check-circle',
+      icon: 'clipboard-list',
     });
 
     await notification.save();
@@ -382,5 +426,21 @@ exports.confirmBooking = asyncHandler(async (req, res) => {
     ...booking.toObject(),
     confirmed: true,
     message: 'تم تأكيد الطلب وإرساله للحرفي بنجاح'
+  });
+});
+
+// تحديث الطلبات المنتهية (يتم استدعاؤها من خلال مجدول المهام أو عند الطلب)
+exports.processExpiredBookings = asyncHandler(async (req, res) => {
+  // التحقق من أن المستخدم مسؤول
+  if (req.user.userType !== 'admin') {
+    return res.status(403).json({ message: 'غير مصرح لك بتنفيذ هذه العملية' });
+  }
+
+  const count = await updateExpiredBookings();
+
+  res.json({
+    success: true,
+    message: `تم تحديث ${count} طلب منتهي الصلاحية`,
+    count
   });
 });

@@ -50,6 +50,10 @@ const bookingSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    visibleToCraftsman: {
+      type: Boolean,
+      default: false,
+    },
     reviewId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Review',
