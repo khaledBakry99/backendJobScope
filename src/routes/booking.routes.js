@@ -36,6 +36,13 @@ router.put(
   bookingController.updateBookingStatus
 );
 
+// Confirmar una reserva y enviarla inmediatamente
+router.patch(
+  '/:id/confirm',
+  authorize('client'),
+  bookingController.confirmBooking
+);
+
 // Editar una reserva (solo dentro de los primeros 5 minutos)
 router.put(
   '/:id',

@@ -328,7 +328,59 @@ exports.updateBooking = asyncHandler(async (req, res) => {
   if (location) booking.location = location;
   if (description) booking.description = description;
 
+  // تحديث تاريخ التعديل
+  booking.updatedAt = new Date();
+
   await booking.save();
 
+  // إرجاع الطلب المحدث مع تاريخ التحديث الجديد
   res.json(booking);
+});
+
+// Confirmar una reserva y enviarla inmediatamente
+exports.confirmBooking = asyncHandler(async (req, res) => {
+  // Buscar la reserva
+  const booking = await Booking.findById(req.params.id);
+
+  if (!booking) {
+    return res.status(404).json({ message: 'Reserva no encontrada' });
+  }
+
+  // Verificar que el usuario es el cliente
+  if (!booking.client.equals(req.user._id)) {
+    return res.status(403).json({ message: 'No autorizado' });
+  }
+
+  // Verificar que la reserva está pendiente
+  if (booking.status !== 'pending') {
+    return res.status(400).json({ message: 'Solo se pueden confirmar reservas pendientes' });
+  }
+
+  // Marcar la reserva como confirmada (no cambia el estado, solo se envía inmediatamente)
+  booking.canEdit = false; // Deshabilitar la edición
+  await booking.save();
+
+  // Crear notificación para el artesano
+  const craftsman = await Craftsman.findById(booking.craftsman).populate('user');
+
+  if (craftsman && craftsman.user) {
+    const notification = new Notification({
+      user: craftsman.user._id,
+      type: 'booking_confirmed',
+      title: 'تم تأكيد طلب الخدمة',
+      message: `تم تأكيد طلب الخدمة من ${req.user.name} وإرساله إليك فورًا`,
+      data: {
+        bookingId: booking._id,
+      },
+      icon: 'check-circle',
+    });
+
+    await notification.save();
+  }
+
+  res.json({
+    ...booking.toObject(),
+    confirmed: true,
+    message: 'تم تأكيد الطلب وإرساله للحرفي بنجاح'
+  });
 });
