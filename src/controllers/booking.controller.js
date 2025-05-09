@@ -13,7 +13,7 @@ exports.createBooking = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { craftsmanId, date, time, location, description } = req.body;
+  const { craftsmanId, date, time, endDate, endTime, location, description } = req.body;
 
   // Verificar que el artesano existe
   const craftsman = await Craftsman.findById(craftsmanId).populate('user');
@@ -32,6 +32,8 @@ exports.createBooking = asyncHandler(async (req, res) => {
     craftsman: craftsmanId,
     date,
     time,
+    endDate,
+    endTime,
     location,
     description,
     status: 'pending',
@@ -53,13 +55,31 @@ exports.createBooking = asyncHandler(async (req, res) => {
 
   await notification.save();
 
-  res.status(201).json(booking);
+  // Obtener la reserva con datos completos para enviar al cliente
+  const populatedBooking = await Booking.findById(booking._id)
+    .populate({
+      path: 'craftsman',
+      populate: {
+        path: 'user',
+        select: 'name phone profilePicture',
+      },
+    })
+    .populate('client', 'name phone profilePicture');
+
+  // Crear un objeto con los datos necesarios para el cliente
+  const responseBooking = {
+    ...populatedBooking.toObject(),
+    craftsmanName: populatedBooking.craftsman.user.name,
+    clientName: populatedBooking.client.name,
+  };
+
+  res.status(201).json(responseBooking);
 });
 
 // Obtener todas las reservas del usuario actual
 exports.getMyBookings = asyncHandler(async (req, res) => {
   let bookings;
-  
+
   if (req.user.userType === 'client') {
     // Si es cliente, obtener sus reservas
     bookings = await Booking.find({ client: req.user._id })
@@ -76,11 +96,11 @@ exports.getMyBookings = asyncHandler(async (req, res) => {
   } else if (req.user.userType === 'craftsman') {
     // Si es artesano, obtener las reservas donde es el artesano
     const craftsmanProfile = await Craftsman.findOne({ user: req.user._id });
-    
+
     if (!craftsmanProfile) {
       return res.status(404).json({ message: 'Perfil de artesano no encontrado' });
     }
-    
+
     bookings = await Booking.find({ craftsman: craftsmanProfile._id })
       .populate('client', 'name phone profilePicture')
       .populate({
@@ -96,7 +116,23 @@ exports.getMyBookings = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'No autorizado' });
   }
 
-  res.json(bookings);
+  // Transformar los resultados para incluir nombres de artesanos y clientes
+  const transformedBookings = bookings.map(booking => {
+    const bookingObj = booking.toObject();
+
+    // Añadir nombres para facilitar el acceso en el frontend
+    if (booking.craftsman && booking.craftsman.user) {
+      bookingObj.craftsmanName = booking.craftsman.user.name;
+    }
+
+    if (booking.client) {
+      bookingObj.clientName = booking.client.name;
+    }
+
+    return bookingObj;
+  });
+
+  res.json(transformedBookings);
 });
 
 // Obtener una reserva por ID
@@ -174,7 +210,7 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
     if (!isClient) {
       return res.status(403).json({ message: 'Solo el cliente puede cancelar reservas' });
     }
-    
+
     // Solo se puede cancelar si está pendiente o aceptada
     if (booking.status !== 'pending' && booking.status !== 'accepted') {
       return res.status(400).json({ message: 'Solo se pueden cancelar reservas pendientes o aceptadas' });
@@ -184,7 +220,7 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
     if (!isCraftsman) {
       return res.status(403).json({ message: 'Solo el artesano puede marcar reservas como completadas' });
     }
-    
+
     // Solo se puede completar si está aceptada
     if (booking.status !== 'accepted') {
       return res.status(400).json({ message: 'Solo se pueden completar reservas aceptadas' });
@@ -256,7 +292,7 @@ exports.updateBooking = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { date, time, location, description } = req.body;
+  const { date, time, endDate, endTime, location, description } = req.body;
 
   // Buscar la reserva
   const booking = await Booking.findById(req.params.id);
@@ -287,6 +323,8 @@ exports.updateBooking = asyncHandler(async (req, res) => {
   // Actualizar campos
   if (date) booking.date = date;
   if (time) booking.time = time;
+  if (endDate) booking.endDate = endDate;
+  if (endTime) booking.endTime = endTime;
   if (location) booking.location = location;
   if (description) booking.description = description;
 

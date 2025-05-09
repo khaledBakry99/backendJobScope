@@ -20,6 +20,12 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    endDate: {
+      type: Date,
+    },
+    endTime: {
+      type: String,
+    },
     location: {
       address: String,
       lat: Number,
@@ -54,13 +60,13 @@ const bookingSchema = new mongoose.Schema(
   }
 );
 
-// Método virtual para verificar si la reserva puede ser editada (dentro de los primeros 5 minutos)
+// Método virtual para verificar si la reserva puede ser editada (dentro de los primeros 10 minutos)
 bookingSchema.virtual('isEditable').get(function() {
   const createdAt = new Date(this.createdAt);
   const now = new Date();
   const diffInMinutes = (now - createdAt) / (1000 * 60);
-  
-  return diffInMinutes <= 5;
+
+  return diffInMinutes <= 10;
 });
 
 const Booking = mongoose.model('Booking', bookingSchema);
