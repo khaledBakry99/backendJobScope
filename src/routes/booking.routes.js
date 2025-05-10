@@ -79,4 +79,15 @@ router.put(
   bookingController.updateBooking
 );
 
+// تحديث الحجز بمعرف التقييم
+router.put(
+  "/:id/review",
+  [
+    check("reviewId", "معرف التقييم مطلوب")
+      .not()
+      .isEmpty(),
+  ],
+  bookingController.updateBookingWithReview
+);
+
 module.exports = router;

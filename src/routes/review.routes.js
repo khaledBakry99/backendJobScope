@@ -16,6 +16,15 @@ router.get('/craftsman/:craftsmanId/ratings', reviewController.getCraftsmanDetai
 // Obtener una reseña por ID
 router.get('/:id', reviewController.getReviewById);
 
+// تحديث تقييم موجود
+router.put('/:id', [
+  check('qualityRating', 'تقييم الجودة يجب أن يكون بين 1 و 5').optional().isFloat({ min: 1, max: 5 }),
+  check('punctualityRating', 'تقييم الالتزام بالمواعيد يجب أن يكون بين 1 و 5').optional().isFloat({ min: 1, max: 5 }),
+  check('priceRating', 'تقييم السعر يجب أن يكون بين 1 و 5').optional().isFloat({ min: 1, max: 5 }),
+  check('communicationRating', 'تقييم التواصل يجب أن يكون بين 1 و 5').optional().isFloat({ min: 1, max: 5 }),
+  check('overallRating', 'التقييم العام يجب أن يكون بين 1 و 5').optional().isFloat({ min: 1, max: 5 }),
+], reviewController.updateReview);
+
 // Crear una nueva reseña (sin autenticación para pruebas)
 router.post(
   '/',

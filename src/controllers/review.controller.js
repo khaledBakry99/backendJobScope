@@ -300,3 +300,95 @@ exports.getCraftsmanDetailedRatings = asyncHandler(async (req, res) => {
     count: reviews.length,
   });
 });
+
+// تحديث تقييم موجود
+exports.updateReview = asyncHandler(async (req, res) => {
+  console.log("بيانات تحديث التقييم المستلمة:", JSON.stringify(req.body, null, 2));
+  console.log("معرف التقييم المطلوب تحديثه:", req.params.id);
+
+  try {
+    // التحقق من وجود التقييم
+    const review = await Review.findById(req.params.id);
+    if (!review) {
+      console.error("التقييم غير موجود:", req.params.id);
+      return res.status(404).json({ message: 'التقييم غير موجود' });
+    }
+    console.log("تم العثور على التقييم:", review._id);
+
+    // التحقق من إمكانية تعديل التقييم (خلال 10 دقائق من إنشائه)
+    const createdAt = new Date(review.createdAt);
+    const now = new Date();
+    const diffInMinutes = (now - createdAt) / (1000 * 60);
+
+    console.log("الوقت المنقضي منذ إنشاء التقييم (بالدقائق):", diffInMinutes);
+
+    if (diffInMinutes > 10) {
+      console.error("لا يمكن تعديل التقييم بعد مرور 10 دقائق من إنشائه");
+      return res.status(400).json({ message: 'لا يمكن تعديل التقييم بعد مرور 10 دقائق من إنشائه' });
+    }
+
+    // تحديث التقييم
+    const {
+      qualityRating,
+      punctualityRating,
+      priceRating,
+      communicationRating,
+      overallRating,
+      comment,
+      images,
+    } = req.body;
+
+    // تحديث البيانات
+    review.qualityRating = qualityRating || review.qualityRating;
+    review.punctualityRating = punctualityRating || review.punctualityRating;
+    review.priceRating = priceRating || review.priceRating;
+    review.communicationRating = communicationRating || review.communicationRating;
+    review.overallRating = overallRating || review.overallRating;
+    review.comment = comment || review.comment;
+
+    // تحديث الصور إذا تم توفيرها
+    if (images && Array.isArray(images)) {
+      review.images = images;
+    }
+
+    // تحديث وقت التعديل
+    review.updatedAt = new Date();
+
+    // حفظ التغييرات
+    await review.save();
+    console.log("تم تحديث التقييم بنجاح:", review._id);
+
+    // تحديث تقييم الحرفي
+    const craftsman = await Craftsman.findById(review.craftsman);
+    if (craftsman) {
+      console.log("تحديث تقييم الحرفي:", craftsman._id);
+
+      // الحصول على جميع تقييمات الحرفي
+      const reviews = await Review.find({ craftsman: craftsman._id });
+
+      // حساب متوسط التقييم
+      const totalRating = reviews.reduce((sum, review) => sum + review.overallRating, 0);
+      const averageRating = totalRating / reviews.length;
+
+      // تحديث بيانات الحرفي
+      craftsman.rating = averageRating;
+      craftsman.reviewCount = reviews.length;
+      await craftsman.save();
+
+      console.log("تم تحديث تقييم الحرفي:", {
+        averageRating,
+        reviewCount: reviews.length
+      });
+    }
+
+    // إرجاع التقييم المحدث
+    res.json(review);
+  } catch (error) {
+    console.error("خطأ أثناء تحديث التقييم:", error);
+    res.status(500).json({
+      message: 'حدث خطأ أثناء تحديث التقييم',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});

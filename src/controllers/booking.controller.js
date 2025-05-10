@@ -473,3 +473,39 @@ exports.processExpiredBookings = asyncHandler(async (req, res) => {
     count
   });
 });
+
+// تحديث الحجز بمعرف التقييم
+exports.updateBookingWithReview = asyncHandler(async (req, res) => {
+  const { reviewId } = req.body;
+
+  console.log("تحديث الحجز بمعرف التقييم:", {
+    bookingId: req.params.id,
+    reviewId: reviewId
+  });
+
+  // التحقق من وجود معرف التقييم
+  if (!reviewId) {
+    return res.status(400).json({ message: 'معرف التقييم مطلوب' });
+  }
+
+  // البحث عن الحجز
+  const booking = await Booking.findById(req.params.id);
+
+  if (!booking) {
+    return res.status(404).json({ message: 'الحجز غير موجود' });
+  }
+
+  // تحديث الحجز بمعرف التقييم
+  booking.reviewId = reviewId;
+  await booking.save();
+
+  console.log("تم تحديث الحجز بمعرف التقييم بنجاح:", {
+    bookingId: booking._id,
+    reviewId: booking.reviewId
+  });
+
+  res.json({
+    ...booking.toObject(),
+    message: 'تم تحديث الحجز بمعرف التقييم بنجاح'
+  });
+});
