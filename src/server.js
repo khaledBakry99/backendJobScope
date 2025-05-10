@@ -36,7 +36,6 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "http://localhost:3001",
       "https://jobscope-8t58.onrender.com",
       "http://localhost:5173",
     ],
@@ -60,7 +59,6 @@ app.use(
 app.use((req, res, next) => {
   const allowedOrigins = [
     "http://localhost:3000",
-    "http://localhost:3001",
     "https://jobscope-8t58.onrender.com",
     "http://localhost:5173",
   ];
@@ -105,7 +103,11 @@ console.log("Serving uploads from:", uploadsPath);
 app.use(
   "/uploads",
   (req, res, next) => {
-    const allowedOrigins = ["http://localhost:3000", "https://jobscope-8t58.onrender.com", "http://localhost:5173"];
+    const allowedOrigins = [
+      "http://localhost:3000",
+      "https://jobscope-8t58.onrender.com",
+      "http://localhost:5173",
+    ];
     const origin = req.headers.origin;
 
     if (allowedOrigins.includes(origin)) {
