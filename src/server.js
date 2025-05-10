@@ -34,10 +34,14 @@ app.use(
 // تكوين CORS للسماح بالوصول من أي مصدر
 app.use(
   cors({
-    origin: "*",
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    origin: [
+      "http://localhost:3000",
+      "https://jobscope-8t58.onrender.com",
+      "http://localhost:5173",
+    ],
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
     preflightContinue: false,
-    optionsSuccessStatus: 200,
+    optionsSuccessStatus: 204,
     credentials: true,
     allowedHeaders: [
       "Content-Type",
@@ -51,20 +55,36 @@ app.use(
   })
 );
 
-// إضافة رؤوس CORS يدويًا لجميع الطلبات
+// إضافة رؤوس CORS يدويًا لجميع الطلبات للتأكيد
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  const allowedOrigins = [
+    "http://localhost:3000",
+    "https://jobscope-8t58.onrender.com",
+    "http://localhost:5173",
+  ];
+  const origin = req.headers.origin;
+
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  } else {
+    res.header("Access-Control-Allow-Origin", "*");
+  }
+
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+  );
   res.header(
     "Access-Control-Allow-Headers",
     "Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Client-Info"
   );
+  res.header("Access-Control-Allow-Credentials", "true");
   res.header("Cross-Origin-Resource-Policy", "cross-origin");
   res.header("Access-Control-Expose-Headers", "Content-Length, Content-Range");
 
   // معالجة طلبات OPTIONS
   if (req.method === "OPTIONS") {
-    return res.status(200).end();
+    return res.status(204).end();
   }
 
   next();
@@ -82,16 +102,30 @@ console.log("Serving uploads from:", uploadsPath);
 // إضافة رؤوس CORS للملفات المحملة
 app.use(
   "/uploads",
-  (_req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
+  (req, res, next) => {
+    const allowedOrigins = ["http://localhost:3000", "https://jobscope-8t58.onrender.com", "http://localhost:5173"];
+    const origin = req.headers.origin;
+
+    if (allowedOrigins.includes(origin)) {
+      res.header("Access-Control-Allow-Origin", origin);
+    } else {
+      res.header("Access-Control-Allow-Origin", "*");
+    }
+
     res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
     res.header(
       "Access-Control-Allow-Headers",
-      "Origin, X-Requested-With, Content-Type, Accept"
+      "Origin, X-Requested-With, Content-Type, Accept, Authorization"
     );
+    res.header("Access-Control-Allow-Credentials", "true");
     res.header("Cross-Origin-Resource-Policy", "cross-origin");
     res.header("Cross-Origin-Embedder-Policy", "credentialless");
     res.header("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+
+    // معالجة طلبات OPTIONS
+    if (req.method === "OPTIONS") {
+      return res.status(204).end();
+    }
 
     // معالجة الخطأ
     try {
@@ -103,9 +137,10 @@ app.use(
   },
   express.static(uploadsPath, {
     fallthrough: false, // إرجاع خطأ 404 بدلاً من الاستمرار
-    setHeaders: (res) => {
+    setHeaders: (res, path) => {
       res.set("Cache-Control", "public, max-age=31536000"); // تخزين مؤقت لمدة سنة
-      res.set("Access-Control-Allow-Origin", "*");
+
+      // No establecemos Access-Control-Allow-Origin aquí porque ya lo hicimos en el middleware anterior
       res.set("Cross-Origin-Resource-Policy", "cross-origin");
     },
   })
@@ -141,7 +176,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 // استيراد مجدول المهام
-const { startCronJobs } = require('./cron/bookingCron');
+const { startCronJobs } = require("./cron/bookingCron");
 
 // بدء الخادم
 app.listen(PORT, () => {
@@ -152,5 +187,5 @@ app.listen(PORT, () => {
 
   // بدء تشغيل مجدول المهام
   startCronJobs();
-  console.log('تم بدء تشغيل مجدول المهام لتحديث الطلبات المنتهية');
+  console.log("تم بدء تشغيل مجدول المهام لتحديث الطلبات المنتهية");
 });
