@@ -516,6 +516,20 @@ exports.getStreetsInWorkRange = asyncHandler(async (req, res) => {
   res.json(data);
 });
 
+// الحصول على معرض أعمال الحرفي
+exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
+  const craftsman = await Craftsman.findById(req.params.id);
+
+  if (!craftsman) {
+    return res.status(404).json({ message: "Artesano no encontrado" });
+  }
+
+  // إرجاع معرض الأعمال
+  res.json({
+    gallery: craftsman.workGallery || []
+  });
+});
+
 // تحديث الشوارع ضمن نطاق عمل الحرفي
 exports.updateStreetsInWorkRange = asyncHandler(async (req, res) => {
   // التحقق من أخطاء التحقق

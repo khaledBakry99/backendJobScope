@@ -16,6 +16,9 @@ router.get("/:id", craftsmanController.getCraftsmanById);
 // Obtener las calles dentro del rango de trabajo de un artesano
 router.get("/:id/streets", craftsmanController.getStreetsInWorkRange);
 
+// Obtener galería de trabajos de un artesano
+router.get("/:id/gallery", craftsmanController.getCraftsmanGallery);
+
 // Buscar artesanos
 router.post(
   "/search",
