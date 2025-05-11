@@ -518,17 +518,43 @@ exports.getStreetsInWorkRange = asyncHandler(async (req, res) => {
 
 // الحصول على معرض أعمال الحرفي
 exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
-  const craftsman = await Craftsman.findById(req.params.id);
+  // يمكن أن يكون المعرف هو معرف المستخدم أو معرف الحرفي
+  let craftsman;
 
-  if (!craftsman) {
-    return res.status(404).json({ message: "Artesano no encontrado" });
+  try {
+    // أولاً نحاول البحث باستخدام معرف الحرفي
+    craftsman = await Craftsman.findById(req.params.id);
+
+    // إذا لم نجد الحرفي، نحاول البحث باستخدام معرف المستخدم
+    if (!craftsman) {
+      craftsman = await Craftsman.findOne({ user: req.params.id });
+    }
+
+    if (!craftsman) {
+      return res.status(404).json({ message: "Artesano no encontrado" });
+    }
+
+    // طباعة معلومات التصحيح
+    console.log("تم العثور على الحرفي في getCraftsmanGallery:", {
+      id: craftsman._id,
+      userId: craftsman.user,
+      workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0
+    });
+
+    // إرجاع معرض الأعمال مع دعم الاسمين (gallery و workGallery) للتوافق
+    res.json({
+      gallery: craftsman.workGallery || [],
+      workGallery: craftsman.workGallery || [],
+    });
+  } catch (error) {
+    console.error("خطأ في الحصول على معرض الأعمال:", error);
+    console.error("تفاصيل الخطأ:", error.stack);
+    res.status(500).json({
+      message: "Error al obtener la galería",
+      error: error.message,
+      stack: error.stack
+    });
   }
-
-  // إرجاع معرض الأعمال مع دعم الاسمين (gallery و workGallery) للتوافق
-  res.json({
-    gallery: craftsman.workGallery || [],
-    workGallery: craftsman.workGallery || [],
-  });
 });
 
 // تحديث الشوارع ضمن نطاق عمل الحرفي
