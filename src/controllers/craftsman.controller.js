@@ -524,9 +524,10 @@ exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Artesano no encontrado" });
   }
 
-  // إرجاع معرض الأعمال
+  // إرجاع معرض الأعمال مع دعم الاسمين (gallery و workGallery) للتوافق
   res.json({
-    gallery: craftsman.workGallery || []
+    gallery: craftsman.workGallery || [],
+    workGallery: craftsman.workGallery || [],
   });
 });
 

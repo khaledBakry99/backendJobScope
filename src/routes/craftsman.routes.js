@@ -3,6 +3,7 @@ const { check } = require("express-validator");
 const craftsmanController = require("../controllers/craftsman.controller");
 const { protect, authorize } = require("../middleware/auth.middleware");
 const { uploadMultipleImages } = require("../middleware/upload.middleware");
+const Craftsman = require("../models/craftsman.model");
 
 const router = express.Router();
 
@@ -80,6 +81,29 @@ router.put(
   [check("workGallery", "La galería debe ser un array").isArray()],
   craftsmanController.updateWorkGallery
 );
+
+// Obtener galería de trabajos del artesano actual
+router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
+  try {
+    // Buscar perfil de artesano
+    const craftsman = await Craftsman.findOne({ user: req.user._id });
+
+    if (!craftsman) {
+      return res
+        .status(404)
+        .json({ message: "Perfil de artesano no encontrado" });
+    }
+
+    // Devolver la galería con ambos nombres para compatibilidad
+    res.json({
+      gallery: craftsman.workGallery || [],
+      workGallery: craftsman.workGallery || [],
+    });
+  } catch (error) {
+    console.error("Error al obtener la galería:", error);
+    res.status(500).json({ message: "Error al obtener la galería" });
+  }
+});
 
 // Actualizar disponibilidad
 router.put(
