@@ -85,8 +85,25 @@ router.put(
 // Obtener galería de trabajos del artesano actual
 router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
   try {
-    // Buscar perfil de artesano
-    const craftsman = await Craftsman.findOne({ user: req.user.id });
+    // Imprimir información de depuración del usuario
+    console.log("Usuario autenticado:", {
+      id: req.user.id,
+      _id: req.user._id,
+      userKeys: Object.keys(req.user),
+    });
+
+    // Buscar perfil de artesano usando ambos formatos de ID
+    let craftsman = null;
+
+    // Primero intentar con req.user.id
+    if (req.user.id) {
+      craftsman = await Craftsman.findOne({ user: req.user.id });
+    }
+
+    // Si no se encuentra, intentar con req.user._id
+    if (!craftsman && req.user._id) {
+      craftsman = await Craftsman.findOne({ user: req.user._id });
+    }
 
     if (!craftsman) {
       return res
@@ -98,8 +115,8 @@ router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
     console.log("Craftsman encontrado:", {
       id: craftsman._id,
       userId: craftsman.user,
-      requestUserId: req.user.id,
-      workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0
+      requestUserId: req.user.id || req.user._id,
+      workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0,
     });
 
     // Devolver la galería con ambos nombres para compatibilidad
@@ -110,7 +127,11 @@ router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
   } catch (error) {
     console.error("Error al obtener la galería:", error);
     console.error("Detalles del error:", error.stack);
-    res.status(500).json({ message: "Error al obtener la galería", error: error.message });
+    res.status(500).json({
+      message: "Error al obtener la galería",
+      error: error.message,
+      stack: error.stack,
+    });
   }
 });
 

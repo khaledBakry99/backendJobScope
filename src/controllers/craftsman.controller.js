@@ -547,8 +547,7 @@ exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
       workGallery: craftsman.workGallery || [],
     });
   } catch (error) {
-    console.error("خطأ في الحصول على معرض الأعمال:", error);
-    console.error("تفاصيل الخطأ:", error.stack);
+   
     res.status(500).json({
       message: "Error al obtener la galería",
       error: error.message,
