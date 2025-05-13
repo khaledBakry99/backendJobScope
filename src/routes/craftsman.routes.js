@@ -86,7 +86,7 @@ router.put(
 router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
   try {
     // Imprimir información de depuración del usuario
-    console.log("Usuario autenticado:", {
+    console.log("Usuario autenticado en /me/gallery:", {
       id: req.user.id,
       _id: req.user._id,
       userKeys: Object.keys(req.user),
@@ -98,31 +98,55 @@ router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
     // Primero intentar con req.user.id
     if (req.user.id) {
       craftsman = await Craftsman.findOne({ user: req.user.id });
+      if (craftsman) {
+        console.log("Craftsman encontrado con req.user.id");
+      }
     }
 
     // Si no se encuentra, intentar con req.user._id
     if (!craftsman && req.user._id) {
       craftsman = await Craftsman.findOne({ user: req.user._id });
+      if (craftsman) {
+        console.log("Craftsman encontrado con req.user._id");
+      }
     }
 
     if (!craftsman) {
+      console.log("Perfil de artesano no encontrado con ningún ID");
       return res
         .status(404)
         .json({ message: "Perfil de artesano no encontrado" });
     }
 
     // Imprimir información de depuración
-    console.log("Craftsman encontrado:", {
+    console.log("Craftsman encontrado en /me/gallery:", {
       id: craftsman._id,
       userId: craftsman.user,
       requestUserId: req.user.id || req.user._id,
       workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0,
     });
 
+    // Filtrar URLs vacías o inválidas
+    const validGallery = Array.isArray(craftsman.workGallery)
+      ? craftsman.workGallery.filter(url => url && url !== "undefined" && url !== "null")
+      : [];
+
+    console.log("Galería filtrada en /me/gallery:", {
+      original: craftsman.workGallery ? craftsman.workGallery.length : 0,
+      filtered: validGallery.length
+    });
+
+    // Si hay diferencia entre la galería original y la filtrada, actualizar en la base de datos
+    if (validGallery.length !== (craftsman.workGallery ? craftsman.workGallery.length : 0)) {
+      console.log("Actualizando galería en la base de datos después de filtrar");
+      craftsman.workGallery = validGallery;
+      await craftsman.save();
+    }
+
     // Devolver la galería con ambos nombres para compatibilidad
     res.json({
-      gallery: craftsman.workGallery || [],
-      workGallery: craftsman.workGallery || [],
+      gallery: validGallery,
+      workGallery: validGallery,
     });
   } catch (error) {
     console.error("Error al obtener la galería:", error);
@@ -155,13 +179,66 @@ router.post(
   "/me/upload-gallery",
   authorize("craftsman"),
   uploadMultipleImages("galleryImages", 5),
-  (req, res) => {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ message: "No se han subido imágenes" });
-    }
+  async (req, res) => {
+    try {
+      console.log("Solicitud de carga de imágenes recibida:", {
+        files: req.files ? req.files.length : 0,
+        userId: req.user.id || req.user._id
+      });
 
-    const imageUrls = req.files.map((file) => `/uploads/${file.filename}`);
-    res.json({ imageUrls });
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ message: "No se han subido imágenes" });
+      }
+
+      // Generar URLs para las imágenes cargadas
+      const imageUrls = req.files.map((file) => `/uploads/${file.filename}`);
+      console.log("URLs de imágenes generadas:", imageUrls);
+
+      // Buscar el perfil del artesano
+      let craftsman = null;
+
+      // Primero intentar con req.user.id
+      if (req.user.id) {
+        craftsman = await Craftsman.findOne({ user: req.user.id });
+      }
+
+      // Si no se encuentra, intentar con req.user._id
+      if (!craftsman && req.user._id) {
+        craftsman = await Craftsman.findOne({ user: req.user._id });
+      }
+
+      if (!craftsman) {
+        return res.status(404).json({ message: "Perfil de artesano no encontrado" });
+      }
+
+      // Actualizar la galería de trabajos del artesano
+      const currentGallery = craftsman.workGallery || [];
+      const updatedGallery = [...currentGallery, ...imageUrls];
+
+      console.log("Galería actualizada:", {
+        currentGallery: currentGallery.length,
+        newImages: imageUrls.length,
+        updatedGallery: updatedGallery.length
+      });
+
+      // Guardar la galería actualizada
+      craftsman.workGallery = updatedGallery;
+      await craftsman.save();
+
+      // Devolver las URLs de las imágenes y la galería actualizada
+      res.json({
+        imageUrls,
+        gallery: craftsman.workGallery,
+        workGallery: craftsman.workGallery
+      });
+    } catch (error) {
+      console.error("Error al subir imágenes:", error);
+      res.status(500).json({
+        message: "Error al subir imágenes",
+        error: error.message,
+        stack: error.stack
+      });
+    }
   }
 );
 
