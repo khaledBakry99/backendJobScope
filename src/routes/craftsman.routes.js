@@ -200,30 +200,54 @@ router.post(
       // Primero intentar con req.user.id
       if (req.user.id) {
         craftsman = await Craftsman.findOne({ user: req.user.id });
+        if (craftsman) {
+          console.log("Craftsman encontrado con req.user.id");
+        }
       }
 
       // Si no se encuentra, intentar con req.user._id
       if (!craftsman && req.user._id) {
         craftsman = await Craftsman.findOne({ user: req.user._id });
+        if (craftsman) {
+          console.log("Craftsman encontrado con req.user._id");
+        }
       }
 
       if (!craftsman) {
+        console.log("Perfil de artesano no encontrado con ningún ID");
         return res.status(404).json({ message: "Perfil de artesano no encontrado" });
       }
 
-      // Actualizar la galería de trabajos del artesano
-      const currentGallery = craftsman.workGallery || [];
+      // Obtener la galería actual y asegurarse de que sea un array
+      let currentGallery = [];
+      if (craftsman.workGallery && Array.isArray(craftsman.workGallery)) {
+        // Filtrar URLs vacías o inválidas
+        currentGallery = craftsman.workGallery.filter(url => url && url !== "undefined" && url !== "null");
+      }
+
+      console.log("Galería actual antes de la actualización:", {
+        currentGalleryLength: currentGallery.length,
+        currentGalleryItems: currentGallery
+      });
+
+      // Combinar la galería actual con las nuevas imágenes
       const updatedGallery = [...currentGallery, ...imageUrls];
 
-      console.log("Galería actualizada:", {
+      console.log("Galería después de la actualización:", {
         currentGallery: currentGallery.length,
         newImages: imageUrls.length,
-        updatedGallery: updatedGallery.length
+        updatedGallery: updatedGallery.length,
+        updatedGalleryItems: updatedGallery
       });
 
       // Guardar la galería actualizada
       craftsman.workGallery = updatedGallery;
       await craftsman.save();
+
+      console.log("Galería guardada en la base de datos:", {
+        savedGalleryLength: craftsman.workGallery.length,
+        savedGalleryItems: craftsman.workGallery
+      });
 
       // Devolver las URLs de las imágenes y la galería actualizada
       res.json({
