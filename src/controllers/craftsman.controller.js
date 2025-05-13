@@ -293,6 +293,7 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
     professions,
     specializations,
     bio,
+    features,
     workRadius,
     location,
     address,
@@ -313,6 +314,7 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
   if (professions) craftsman.professions = professions;
   if (specializations) craftsman.specializations = specializations;
   if (bio) craftsman.bio = bio;
+  if (features) craftsman.features = features;
 
   // تحديث نطاق العمل والموقع
   let shouldUpdateStreets = false;
@@ -538,7 +540,7 @@ exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
     console.log("تم العثور على الحرفي في getCraftsmanGallery:", {
       id: craftsman._id,
       userId: craftsman.user,
-      workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0
+      workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0,
     });
 
     // إرجاع معرض الأعمال مع دعم الاسمين (gallery و workGallery) للتوافق
@@ -547,11 +549,10 @@ exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
       workGallery: craftsman.workGallery || [],
     });
   } catch (error) {
-   
     res.status(500).json({
       message: "Error al obtener la galería",
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
     });
   }
 });
