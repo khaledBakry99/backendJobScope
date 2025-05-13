@@ -334,12 +334,22 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
 
   // التأكد من أن الخصائص مصفوفة
   if (features) {
-    if (Array.isArray(features)) {
-      craftsman.features = features;
-    } else {
-      // إذا لم تكن مصفوفة، نحولها إلى مصفوفة
-      craftsman.features = [features];
+    // تحويل الخصائص الجديدة إلى مصفوفة إذا لم تكن كذلك
+    const newFeatures = Array.isArray(features) ? features : [features];
+
+    // التأكد من أن الخصائص الحالية مصفوفة
+    if (!craftsman.features) {
+      craftsman.features = [];
+    } else if (!Array.isArray(craftsman.features)) {
+      craftsman.features = [craftsman.features];
     }
+
+    // دمج الخصائص الجديدة مع الخصائص الحالية وإزالة التكرارات
+    const uniqueFeatures = [
+      ...new Set([...craftsman.features, ...newFeatures]),
+    ];
+    craftsman.features = uniqueFeatures;
+
     console.log("تم تحديث الخصائص في updateCraftsmanProfile:", {
       features: craftsman.features,
       featuresType: typeof craftsman.features,
