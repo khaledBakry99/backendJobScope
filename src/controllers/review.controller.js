@@ -71,11 +71,7 @@ exports.createReview = asyncHandler(async (req, res) => {
     const clientIdFromBooking = booking.client.toString();
     const userIdToCheck = userToCheck.toString();
 
-    console.log("مقارنة معرفات العملاء:", {
-      clientIdFromBooking,
-      userIdToCheck,
-      isEqual: clientIdFromBooking === userIdToCheck,
-    });
+    
 
     if (clientIdFromBooking !== userIdToCheck) {
       console.error(

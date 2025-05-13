@@ -88,6 +88,23 @@ exports.getMyProfile = asyncHandler(async (req, res) => {
   // تحويل البيانات إلى كائن عادي للتعديل
   const craftsmanObj = craftsman.toObject();
 
+  // التأكد من وجود خصائص
+  if (!craftsmanObj.features) {
+    console.log("إضافة مصفوفة خصائص فارغة في getMyProfile");
+    craftsmanObj.features = [];
+  } else if (!Array.isArray(craftsmanObj.features)) {
+    console.log("تحويل الخصائص إلى مصفوفة في getMyProfile");
+    craftsmanObj.features = [craftsmanObj.features];
+  }
+
+  // طباعة الخصائص بعد المعالجة
+  console.log("الخصائص بعد المعالجة في getMyProfile:", {
+    features: craftsmanObj.features,
+    featuresType: typeof craftsmanObj.features,
+    featuresIsArray: Array.isArray(craftsmanObj.features),
+    featuresLength: craftsmanObj.features.length,
+  });
+
   // إضافة حقل الصورة من بيانات المستخدم إذا كانت متوفرة
   if (
     craftsmanObj.user &&
@@ -314,7 +331,22 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
   if (professions) craftsman.professions = professions;
   if (specializations) craftsman.specializations = specializations;
   if (bio) craftsman.bio = bio;
-  if (features) craftsman.features = features;
+
+  // التأكد من أن الخصائص مصفوفة
+  if (features) {
+    if (Array.isArray(features)) {
+      craftsman.features = features;
+    } else {
+      // إذا لم تكن مصفوفة، نحولها إلى مصفوفة
+      craftsman.features = [features];
+    }
+    console.log("تم تحديث الخصائص في updateCraftsmanProfile:", {
+      features: craftsman.features,
+      featuresType: typeof craftsman.features,
+      featuresIsArray: Array.isArray(craftsman.features),
+      featuresLength: craftsman.features.length,
+    });
+  }
 
   // تحديث نطاق العمل والموقع
   let shouldUpdateStreets = false;
