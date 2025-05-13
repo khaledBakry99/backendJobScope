@@ -170,7 +170,7 @@ exports.register = asyncHandler(async (req, res) => {
   let craftsmanInfo = null;
   if (user.userType === "craftsman") {
     craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
-      "professions specializations workRadius location bio streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange"
+      "professions specializations workRadius location bio workGallery streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange available"
     );
   }
 
@@ -192,6 +192,9 @@ exports.register = asyncHandler(async (req, res) => {
       workRadius: craftsmanInfo.workRadius,
       location: craftsmanInfo.location,
       bio: craftsmanInfo.bio,
+      gallery: craftsmanInfo.workGallery || [], // إضافة معرض الصور
+      workGallery: craftsmanInfo.workGallery || [], // إضافة معرض الأعمال للتوافق مع الباك إند
+      available: craftsmanInfo.available, // إضافة حالة التوفر
       streetsInWorkRange: craftsmanInfo.streetsInWorkRange,
       hospitalsInWorkRange: craftsmanInfo.hospitalsInWorkRange,
       mosquesInWorkRange: craftsmanInfo.mosquesInWorkRange,
@@ -250,7 +253,7 @@ exports.login = asyncHandler(async (req, res) => {
   let craftsmanInfo = null;
   if (user.userType === "craftsman") {
     craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
-      "professions specializations workRadius location bio features streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange"
+      "professions specializations workRadius location bio features workGallery streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange available"
     );
   }
 
@@ -273,6 +276,9 @@ exports.login = asyncHandler(async (req, res) => {
       location: craftsmanInfo.location,
       bio: craftsmanInfo.bio,
       features: craftsmanInfo.features || [],
+      gallery: craftsmanInfo.workGallery || [], // إضافة معرض الصور
+      workGallery: craftsmanInfo.workGallery || [], // إضافة معرض الأعمال للتوافق مع الباك إند
+      available: craftsmanInfo.available, // إضافة حالة التوفر
       streetsInWorkRange: craftsmanInfo.streetsInWorkRange,
       hospitalsInWorkRange: craftsmanInfo.hospitalsInWorkRange,
       mosquesInWorkRange: craftsmanInfo.mosquesInWorkRange,
@@ -299,7 +305,7 @@ exports.getCurrentUser = asyncHandler(async (req, res) => {
   let craftsmanInfo = null;
   if (user.userType === "craftsman") {
     craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
-      "professions specializations workRadius location bio features workingHours streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange"
+      "professions specializations workRadius location bio features workingHours workGallery streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange available"
     );
   }
 
@@ -323,6 +329,10 @@ exports.getCurrentUser = asyncHandler(async (req, res) => {
       location: craftsmanInfo.location,
       bio: craftsmanInfo.bio,
       features: craftsmanInfo.features || [],
+      gallery: craftsmanInfo.workGallery || [], // إضافة معرض الصور
+      workGallery: craftsmanInfo.workGallery || [], // إضافة معرض الأعمال للتوافق مع الباك إند
+      workingHours: craftsmanInfo.workingHours || {},
+      available: craftsmanInfo.available, // إضافة حالة التوفر
       streetsInWorkRange: craftsmanInfo.streetsInWorkRange,
       hospitalsInWorkRange: craftsmanInfo.hospitalsInWorkRange,
       mosquesInWorkRange: craftsmanInfo.mosquesInWorkRange,
