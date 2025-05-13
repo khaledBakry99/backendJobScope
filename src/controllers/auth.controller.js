@@ -22,7 +22,15 @@ exports.register = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { name, email, password, phone, userType, address, profilePicture } = req.body;
+  const {
+    name,
+    email,
+    password,
+    phone,
+    userType,
+    address,
+    profilePicture,
+  } = req.body;
 
   // طباعة البيانات المستلمة للتشخيص
   console.log("Registration data received:", {
@@ -32,7 +40,7 @@ exports.register = asyncHandler(async (req, res) => {
     userType,
     address,
     hasProfilePicture: !!profilePicture,
-    profilePictureLength: profilePicture ? profilePicture.length : 0
+    profilePictureLength: profilePicture ? profilePicture.length : 0,
   });
 
   // التحقق مما إذا كان المستخدم موجودًا بالفعل
@@ -47,22 +55,22 @@ exports.register = asyncHandler(async (req, res) => {
   }
 
   // معالجة الصورة الشخصية إذا كانت موجودة
-  let profilePicturePath = '';
+  let profilePicturePath = "";
   if (profilePicture) {
     // التحقق مما إذا كانت الصورة بتنسيق base64
-    if (profilePicture.startsWith('data:image')) {
+    if (profilePicture.startsWith("data:image")) {
       // تحويل الصورة من base64 إلى ملف
-      const base64Data = profilePicture.replace(/^data:image\/\w+;base64,/, '');
-      const buffer = Buffer.from(base64Data, 'base64');
+      const base64Data = profilePicture.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
 
       // إنشاء اسم فريد للملف
       const filename = `profile-${Date.now()}.png`;
       const filePath = `uploads/${filename}`;
 
       // التأكد من وجود المجلد
-      const fs = require('fs');
-      const path = require('path');
-      const uploadDir = path.join(process.cwd(), 'uploads');
+      const fs = require("fs");
+      const path = require("path");
+      const uploadDir = path.join(process.cwd(), "uploads");
 
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
@@ -242,7 +250,7 @@ exports.login = asyncHandler(async (req, res) => {
   let craftsmanInfo = null;
   if (user.userType === "craftsman") {
     craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
-      "professions specializations workRadius location bio streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange"
+      "professions specializations workRadius location bio features streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange"
     );
   }
 
@@ -264,6 +272,7 @@ exports.login = asyncHandler(async (req, res) => {
       workRadius: craftsmanInfo.workRadius,
       location: craftsmanInfo.location,
       bio: craftsmanInfo.bio,
+      features: craftsmanInfo.features || [],
       streetsInWorkRange: craftsmanInfo.streetsInWorkRange,
       hospitalsInWorkRange: craftsmanInfo.hospitalsInWorkRange,
       mosquesInWorkRange: craftsmanInfo.mosquesInWorkRange,
@@ -290,7 +299,7 @@ exports.getCurrentUser = asyncHandler(async (req, res) => {
   let craftsmanInfo = null;
   if (user.userType === "craftsman") {
     craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
-      "professions specializations workRadius location bio workingHours streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange"
+      "professions specializations workRadius location bio features workingHours streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange"
     );
   }
 
@@ -313,6 +322,7 @@ exports.getCurrentUser = asyncHandler(async (req, res) => {
       workRadius: craftsmanInfo.workRadius,
       location: craftsmanInfo.location,
       bio: craftsmanInfo.bio,
+      features: craftsmanInfo.features || [],
       streetsInWorkRange: craftsmanInfo.streetsInWorkRange,
       hospitalsInWorkRange: craftsmanInfo.hospitalsInWorkRange,
       mosquesInWorkRange: craftsmanInfo.mosquesInWorkRange,
@@ -543,7 +553,7 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
     phone,
     userType,
     googleId,
-    hasImage: !!image
+    hasImage: !!image,
   });
 
   if (!uid) {
@@ -602,9 +612,13 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
         profilePicture: image || "",
         isActive: true,
         // لا نحتاج لكلمة مرور لأن المصادقة تتم عبر Firebase
-        password: Math.random()
-          .toString(36)
-          .substring(2) + Math.random().toString(36).substring(2),
+        password:
+          Math.random()
+            .toString(36)
+            .substring(2) +
+          Math.random()
+            .toString(36)
+            .substring(2),
       });
 
       await user.save();
@@ -633,7 +647,7 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
     let craftsmanInfo = null;
     if (user.userType === "craftsman") {
       craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
-        "professions specializations workRadius location bio streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange"
+        "professions specializations workRadius location bio features streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange"
       );
     }
 
@@ -656,6 +670,7 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
         workRadius: craftsmanInfo.workRadius,
         location: craftsmanInfo.location,
         bio: craftsmanInfo.bio,
+        features: craftsmanInfo.features || [],
         streetsInWorkRange: craftsmanInfo.streetsInWorkRange,
         hospitalsInWorkRange: craftsmanInfo.hospitalsInWorkRange,
         mosquesInWorkRange: craftsmanInfo.mosquesInWorkRange,
@@ -674,7 +689,7 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
     console.error("Error in registerFirebaseUser:", error);
     res.status(500).json({
       message: "حدث خطأ أثناء تسجيل المستخدم",
-      error: error.message
+      error: error.message,
     });
   }
 });
