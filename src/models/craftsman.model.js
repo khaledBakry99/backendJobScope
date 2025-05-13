@@ -22,6 +22,10 @@ const craftsmanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    features: {
+      type: [String],
+      default: [],
+    },
     workRadius: {
       type: Number,
       default: 5, // بالكيلومتر
