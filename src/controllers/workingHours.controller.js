@@ -1,6 +1,6 @@
 const { validationResult } = require("express-validator");
 const Craftsman = require("../models/craftsman.model");
-const asyncHandler = require("express-async-handler");
+const { asyncHandler } = require("../middleware/error.middleware");
 
 // تحديث ساعات العمل للحرفي
 exports.updateWorkingHours = asyncHandler(async (req, res) => {
@@ -24,48 +24,56 @@ exports.updateWorkingHours = asyncHandler(async (req, res) => {
     const workingHoursArray = [];
 
     // التحقق من وجود ساعات العمل
-    if (workingHours && typeof workingHours === 'object') {
+    if (workingHours && typeof workingHours === "object") {
       // معالجة كل يوم من أيام الأسبوع
-      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-      
-      days.forEach(day => {
+      const days = [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+      ];
+
+      days.forEach((day) => {
         // التأكد من وجود بيانات لهذا اليوم
         if (workingHours[day]) {
           // تحويل قيمة isWorking إلى قيمة منطقية صريحة
           const isWorking = workingHours[day].isWorking === true;
-          
+
           // تعيين قيم افتراضية لساعات البدء والانتهاء إذا لم تكن موجودة
-          const start = workingHours[day].start || '09:00';
-          const end = workingHours[day].end || '17:00';
-          
+          const start = workingHours[day].start || "09:00";
+          const end = workingHours[day].end || "17:00";
+
           // إضافة اليوم إلى كائن ساعات العمل المطبع
           normalizedWorkingHours[day] = {
             isWorking,
             start,
-            end
+            end,
           };
-          
+
           // إضافة اليوم إلى مصفوفة ساعات العمل
           workingHoursArray.push({
             day,
             isWorking,
             start,
-            end
+            end,
           });
         } else {
           // إضافة قيم افتراضية إذا لم تكن موجودة
           normalizedWorkingHours[day] = {
             isWorking: false,
-            start: '09:00',
-            end: '17:00'
+            start: "09:00",
+            end: "17:00",
           };
-          
+
           // إضافة اليوم إلى مصفوفة ساعات العمل
           workingHoursArray.push({
             day,
             isWorking: false,
-            start: '09:00',
-            end: '17:00'
+            start: "09:00",
+            end: "17:00",
           });
         }
       });
@@ -74,7 +82,7 @@ exports.updateWorkingHours = asyncHandler(async (req, res) => {
     // تحديث ساعات العمل في قاعدة البيانات
     craftsman.workingHours = normalizedWorkingHours;
     craftsman.workingHoursArray = workingHoursArray;
-    
+
     // حفظ التغييرات
     await craftsman.save();
 
@@ -82,7 +90,7 @@ exports.updateWorkingHours = asyncHandler(async (req, res) => {
     return res.status(200).json({
       message: "تم تحديث ساعات العمل بنجاح",
       workingHours: normalizedWorkingHours,
-      workingHoursArray
+      workingHoursArray,
     });
   } catch (error) {
     console.error("خطأ في تحديث ساعات العمل:", error);
@@ -102,10 +110,12 @@ exports.getWorkingHours = asyncHandler(async (req, res) => {
     // إرجاع ساعات العمل
     return res.status(200).json({
       workingHours: craftsman.workingHours,
-      workingHoursArray: craftsman.workingHoursArray
+      workingHoursArray: craftsman.workingHoursArray,
     });
   } catch (error) {
     console.error("خطأ في الحصول على ساعات العمل:", error);
-    return res.status(500).json({ message: "حدث خطأ أثناء الحصول على ساعات العمل" });
+    return res
+      .status(500)
+      .json({ message: "حدث خطأ أثناء الحصول على ساعات العمل" });
   }
 });
