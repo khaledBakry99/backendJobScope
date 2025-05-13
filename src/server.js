@@ -166,6 +166,7 @@ app.use("/api/bookings", require("./routes/booking.routes"));
 app.use("/api/reviews", require("./routes/review.routes"));
 app.use("/api/map", require("./routes/map.routes"));
 app.use("/api/requests", require("./routes/request.routes"));
+app.use("/api/working-hours", require("./routes/workingHours.routes"));
 
 // مسار الاختبار
 app.get("/", (_req, res) => {

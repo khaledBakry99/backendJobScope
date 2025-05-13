@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const workingHoursSchema = require("./workingHours.model");
 
 const craftsmanSchema = new mongoose.Schema(
   {
@@ -85,15 +86,26 @@ const craftsmanSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // ساعات العمل - تخزين كمصفوفة من الأيام مع حالة العمل والوقت
     workingHours: {
-      monday: { start: String, end: String, isWorking: Boolean },
-      tuesday: { start: String, end: String, isWorking: Boolean },
-      wednesday: { start: String, end: String, isWorking: Boolean },
-      thursday: { start: String, end: String, isWorking: Boolean },
-      friday: { start: String, end: String, isWorking: Boolean },
-      saturday: { start: String, end: String, isWorking: Boolean },
-      sunday: { start: String, end: String, isWorking: Boolean },
+      type: Map,
+      of: {
+        isWorking: Boolean,
+        start: String,
+        end: String
+      },
+      default: {
+        monday: { isWorking: false, start: "09:00", end: "17:00" },
+        tuesday: { isWorking: false, start: "09:00", end: "17:00" },
+        wednesday: { isWorking: false, start: "09:00", end: "17:00" },
+        thursday: { isWorking: false, start: "09:00", end: "17:00" },
+        friday: { isWorking: false, start: "09:00", end: "17:00" },
+        saturday: { isWorking: false, start: "09:00", end: "17:00" },
+        sunday: { isWorking: false, start: "09:00", end: "17:00" }
+      }
     },
+    // ساعات العمل كمصفوفة (للتوافق مع الواجهة الجديدة)
+    workingHoursArray: [workingHoursSchema],
   },
   {
     timestamps: true,
