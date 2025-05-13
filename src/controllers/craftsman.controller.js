@@ -379,7 +379,27 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
   }
 
   if (available !== undefined) craftsman.available = available;
-  if (workingHours) craftsman.workingHours = workingHours;
+
+  // تحسين معالجة ساعات العمل
+  if (workingHours) {
+    // التأكد من أن كل يوم له قيمة isWorking منطقية صريحة
+    const normalizedWorkingHours = {};
+
+    Object.keys(workingHours).forEach(day => {
+      const dayData = workingHours[day];
+      normalizedWorkingHours[day] = {
+        // تحويل isWorking إلى قيمة منطقية صريحة
+        isWorking: dayData.isWorking === true,
+        start: dayData.start || '09:00',
+        end: dayData.end || '17:00'
+      };
+    });
+
+    // طباعة ساعات العمل المعالجة للتصحيح
+    console.log("ساعات العمل بعد المعالجة:", JSON.stringify(normalizedWorkingHours));
+
+    craftsman.workingHours = normalizedWorkingHours;
+  }
 
   // إذا تم تغيير الموقع أو نطاق العمل، قم بتحديث الشوارع والأحياء
   if (shouldUpdateStreets && craftsman.location && craftsman.workRadius) {
