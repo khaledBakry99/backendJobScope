@@ -13,11 +13,11 @@ const workingHoursSchema = new mongoose.Schema({
   },
   start: {
     type: String,
-    default: "09:00"
+    default: ""
   },
   end: {
     type: String,
-    default: "17:00"
+    default: ""
   }
 });
 

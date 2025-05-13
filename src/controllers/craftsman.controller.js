@@ -20,6 +20,22 @@ exports.getAllCraftsmen = asyncHandler(async (req, res) => {
       craftsmanObj.image = craftsmanObj.user.profilePicture;
     }
 
+    // إضافة workingHoursArray إذا كانت workingHours موجودة
+    if (craftsmanObj.workingHours) {
+      // تحويل كائن ساعات العمل إلى مصفوفة، مع فلترة الأيام التي تم اختيارها فقط
+      const workingHoursArray = Object.entries(craftsmanObj.workingHours)
+        .filter(([_, data]) => data.isWorking) // فلترة الأيام التي تم اختيارها فقط
+        .map(([day, data]) => ({
+          day,
+          isWorking: true, // نضمن أن isWorking هو true دائمًا للأيام المفلترة
+          start: data.start || "",
+          end: data.end || "",
+        }));
+
+      // إضافة مصفوفة ساعات العمل إلى الاستجابة
+      craftsmanObj.workingHoursArray = workingHoursArray;
+    }
+
     return craftsmanObj;
   });
 
@@ -69,6 +85,26 @@ exports.getCraftsmanById = asyncHandler(async (req, res) => {
     craftsmanObj.image = "/img/user-avatar.svg";
   }
 
+  // إضافة workingHoursArray إذا كانت workingHours موجودة
+  if (craftsmanObj.workingHours) {
+    // تحويل كائن ساعات العمل إلى مصفوفة، مع فلترة الأيام التي تم اختيارها فقط
+    const workingHoursArray = Object.entries(craftsmanObj.workingHours)
+      .filter(([_, data]) => data.isWorking) // فلترة الأيام التي تم اختيارها فقط
+      .map(([day, data]) => ({
+        day,
+        isWorking: true, // نضمن أن isWorking هو true دائمًا للأيام المفلترة
+        start: data.start || "",
+        end: data.end || "",
+      }));
+
+    // إضافة مصفوفة ساعات العمل إلى الاستجابة
+    craftsmanObj.workingHoursArray = workingHoursArray;
+    console.log(
+      "تمت إضافة مصفوفة ساعات العمل إلى الاستجابة:",
+      workingHoursArray
+    );
+  }
+
   res.json(craftsmanObj);
 });
 
@@ -115,6 +151,26 @@ exports.getMyProfile = asyncHandler(async (req, res) => {
   } else {
     // استخدام صورة افتراضية إذا لم تكن هناك صورة
     craftsmanObj.image = "/img/user-avatar.svg";
+  }
+
+  // إضافة workingHoursArray إذا كانت workingHours موجودة
+  if (craftsmanObj.workingHours) {
+    // تحويل كائن ساعات العمل إلى مصفوفة، مع فلترة الأيام التي تم اختيارها فقط
+    const workingHoursArray = Object.entries(craftsmanObj.workingHours)
+      .filter(([_, data]) => data.isWorking) // فلترة الأيام التي تم اختيارها فقط
+      .map(([day, data]) => ({
+        day,
+        isWorking: true, // نضمن أن isWorking هو true دائمًا للأيام المفلترة
+        start: data.start || "",
+        end: data.end || "",
+      }));
+
+    // إضافة مصفوفة ساعات العمل إلى الاستجابة
+    craftsmanObj.workingHoursArray = workingHoursArray;
+    console.log(
+      "تمت إضافة مصفوفة ساعات العمل إلى الاستجابة في getMyProfile:",
+      workingHoursArray
+    );
   }
 
   res.json(craftsmanObj);
@@ -292,6 +348,22 @@ exports.searchCraftsmen = asyncHandler(async (req, res) => {
       craftsmanObj.image = "/img/user-avatar.svg";
     }
 
+    // إضافة workingHoursArray إذا كانت workingHours موجودة
+    if (craftsmanObj.workingHours) {
+      // تحويل كائن ساعات العمل إلى مصفوفة، مع فلترة الأيام التي تم اختيارها فقط
+      const workingHoursArray = Object.entries(craftsmanObj.workingHours)
+        .filter(([_, data]) => data.isWorking) // فلترة الأيام التي تم اختيارها فقط
+        .map(([day, data]) => ({
+          day,
+          isWorking: true, // نضمن أن isWorking هو true دائمًا للأيام المفلترة
+          start: data.start || "",
+          end: data.end || "",
+        }));
+
+      // إضافة مصفوفة ساعات العمل إلى الاستجابة
+      craftsmanObj.workingHoursArray = workingHoursArray;
+    }
+
     return craftsmanObj;
   });
 
@@ -385,18 +457,21 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
     // التأكد من أن كل يوم له قيمة isWorking منطقية صريحة
     const normalizedWorkingHours = {};
 
-    Object.keys(workingHours).forEach(day => {
+    Object.keys(workingHours).forEach((day) => {
       const dayData = workingHours[day];
       normalizedWorkingHours[day] = {
         // تحويل isWorking إلى قيمة منطقية صريحة
         isWorking: dayData.isWorking === true,
-        start: dayData.start || '09:00',
-        end: dayData.end || '17:00'
+        start: dayData.start || "",
+        end: dayData.end || "",
       };
     });
 
     // طباعة ساعات العمل المعالجة للتصحيح
-    console.log("ساعات العمل بعد المعالجة:", JSON.stringify(normalizedWorkingHours));
+    console.log(
+      "ساعات العمل بعد المعالجة:",
+      JSON.stringify(normalizedWorkingHours)
+    );
 
     craftsman.workingHours = normalizedWorkingHours;
   }
@@ -489,6 +564,26 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
     craftsmanObj.image = "/img/user-avatar.svg";
   }
 
+  // إضافة workingHoursArray إذا كانت workingHours موجودة
+  if (craftsmanObj.workingHours) {
+    // تحويل كائن ساعات العمل إلى مصفوفة، مع فلترة الأيام التي تم اختيارها فقط
+    const workingHoursArray = Object.entries(craftsmanObj.workingHours)
+      .filter(([_, data]) => data.isWorking) // فلترة الأيام التي تم اختيارها فقط
+      .map(([day, data]) => ({
+        day,
+        isWorking: true, // نضمن أن isWorking هو true دائمًا للأيام المفلترة
+        start: data.start || "",
+        end: data.end || "",
+      }));
+
+    // إضافة مصفوفة ساعات العمل إلى الاستجابة
+    craftsmanObj.workingHoursArray = workingHoursArray;
+    console.log(
+      "تمت إضافة مصفوفة ساعات العمل إلى الاستجابة في updateCraftsmanProfile:",
+      workingHoursArray
+    );
+  }
+
   res.json(craftsmanObj);
 });
 
@@ -504,14 +599,16 @@ exports.updateWorkGallery = asyncHandler(async (req, res) => {
 
   console.log("Solicitud de actualización de galería recibida:", {
     userId: req.user.id || req.user._id,
-    workGalleryLength: workGallery ? workGallery.length : 0
+    workGalleryLength: workGallery ? workGallery.length : 0,
   });
 
   // Buscar perfil de artesano
   let craftsman = await Craftsman.findOne({ user: req.user._id });
 
   if (!craftsman) {
-    console.log("Perfil de artesano no encontrado con user._id, intentando con user.id");
+    console.log(
+      "Perfil de artesano no encontrado con user._id, intentando con user.id"
+    );
     craftsman = await Craftsman.findOne({ user: req.user.id });
 
     if (!craftsman) {
@@ -524,12 +621,12 @@ exports.updateWorkGallery = asyncHandler(async (req, res) => {
 
   // Filtrar URLs vacías o inválidas
   const validGallery = Array.isArray(workGallery)
-    ? workGallery.filter(url => url && url !== "undefined" && url !== "null")
+    ? workGallery.filter((url) => url && url !== "undefined" && url !== "null")
     : [];
 
   console.log("Galería filtrada:", {
     original: workGallery ? workGallery.length : 0,
-    filtered: validGallery.length
+    filtered: validGallery.length,
   });
 
   // Actualizar galería
@@ -538,7 +635,7 @@ exports.updateWorkGallery = asyncHandler(async (req, res) => {
 
   console.log("Galería actualizada con éxito:", {
     craftsmanId: craftsman._id,
-    gallerySize: craftsman.workGallery.length
+    gallerySize: craftsman.workGallery.length,
   });
 
   // تحويل البيانات إلى كائن عادي للتعديل
@@ -618,7 +715,7 @@ exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
   try {
     console.log("طلب الحصول على معرض الأعمال للحرفي:", {
       id: req.params.id,
-      path: req.originalUrl
+      path: req.originalUrl,
     });
 
     // أولاً نحاول البحث باستخدام معرف الحرفي
@@ -627,7 +724,9 @@ exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
     if (craftsman) {
       console.log("تم العثور على الحرفي باستخدام معرف الحرفي");
     } else {
-      console.log("لم يتم العثور على الحرفي باستخدام معرف الحرفي، محاولة البحث باستخدام معرف المستخدم");
+      console.log(
+        "لم يتم العثور على الحرفي باستخدام معرف الحرفي، محاولة البحث باستخدام معرف المستخدم"
+      );
       // إذا لم نجد الحرفي، نحاول البحث باستخدام معرف المستخدم
       craftsman = await Craftsman.findOne({ user: req.params.id });
     }
@@ -646,16 +745,21 @@ exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
 
     // تصفية أي مسارات فارغة أو غير صالحة
     const validGallery = Array.isArray(craftsman.workGallery)
-      ? craftsman.workGallery.filter(url => url && url !== "undefined" && url !== "null")
+      ? craftsman.workGallery.filter(
+          (url) => url && url !== "undefined" && url !== "null"
+        )
       : [];
 
     console.log("معرض الصور بعد التصفية:", {
       original: craftsman.workGallery ? craftsman.workGallery.length : 0,
-      filtered: validGallery.length
+      filtered: validGallery.length,
     });
 
     // إذا كان هناك اختلاف بين المعرض الأصلي والمعرض المصفى، قم بتحديث المعرض في قاعدة البيانات
-    if (validGallery.length !== (craftsman.workGallery ? craftsman.workGallery.length : 0)) {
+    if (
+      validGallery.length !==
+      (craftsman.workGallery ? craftsman.workGallery.length : 0)
+    ) {
       console.log("تحديث معرض الصور في قاعدة البيانات بعد التصفية");
       craftsman.workGallery = validGallery;
       await craftsman.save();

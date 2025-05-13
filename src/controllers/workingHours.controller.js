@@ -43,8 +43,8 @@ exports.updateWorkingHours = asyncHandler(async (req, res) => {
           const isWorking = workingHours[day].isWorking === true;
 
           // تعيين قيم افتراضية لساعات البدء والانتهاء إذا لم تكن موجودة
-          const start = workingHours[day].start || "09:00";
-          const end = workingHours[day].end || "17:00";
+          const start = workingHours[day].start || "";
+          const end = workingHours[day].end || "";
 
           // إضافة اليوم إلى كائن ساعات العمل المطبع
           normalizedWorkingHours[day] = {
@@ -64,16 +64,16 @@ exports.updateWorkingHours = asyncHandler(async (req, res) => {
           // إضافة قيم افتراضية إذا لم تكن موجودة
           normalizedWorkingHours[day] = {
             isWorking: false,
-            start: "09:00",
-            end: "17:00",
+            start: "",
+            end: "",
           };
 
           // إضافة اليوم إلى مصفوفة ساعات العمل
           workingHoursArray.push({
             day,
             isWorking: false,
-            start: "09:00",
-            end: "17:00",
+            start: "",
+            end: "",
           });
         }
       });
