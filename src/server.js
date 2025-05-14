@@ -39,6 +39,7 @@ app.use(
       "http://localhost:3000",
       "https://jobscope-8t58.onrender.com",
       "http://localhost:5173",
+      "https://cinemaity.cinemaity.com",
     ],
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
     preflightContinue: false,
@@ -62,6 +63,7 @@ app.use((req, res, next) => {
     "http://localhost:3000",
     "https://jobscope-8t58.onrender.com",
     "http://localhost:5173",
+    "https://cinemaity.cinemaity.com",
   ];
   const origin = req.headers.origin;
 
@@ -108,6 +110,7 @@ app.use(
       "http://localhost:3000",
       "https://jobscope-8t58.onrender.com",
       "http://localhost:5173",
+      "https://cinemaity.cinemaity.com",
     ];
     const origin = req.headers.origin;
 
