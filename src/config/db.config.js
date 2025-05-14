@@ -3,8 +3,14 @@ const mongoose = require("mongoose");
 // دالة للاتصال بقاعدة البيانات MongoDB
 const connectDB = async () => {
   try {
-    // طباعة معلومات الاتصال للتشخيص (مع إخفاء كلمة المرور)
+    // التحقق من وجود متغير البيئة MONGODB_URI
     const connectionString = process.env.MONGODB_URI;
+
+    if (!connectionString) {
+      throw new Error('متغير البيئة MONGODB_URI غير معرف. يرجى تعيين متغير البيئة MONGODB_URI في ملف .env أو في إعدادات الخادم.');
+    }
+
+    // طباعة معلومات الاتصال للتشخيص (مع إخفاء كلمة المرور)
     const maskedConnectionString = connectionString.replace(
       /mongodb\+srv:\/\/([^:]+):([^@]+)@/,
       'mongodb+srv://$1:****@'
