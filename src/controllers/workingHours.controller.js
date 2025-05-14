@@ -1,6 +1,7 @@
 const { validationResult } = require("express-validator");
 const Craftsman = require("../models/craftsman.model");
 const { asyncHandler } = require("../middleware/error.middleware");
+const mongoose = require("mongoose");
 
 // تحديث ساعات العمل للحرفي
 exports.updateWorkingHours = asyncHandler(async (req, res) => {
@@ -98,7 +99,7 @@ exports.updateWorkingHours = asyncHandler(async (req, res) => {
   }
 });
 
-// الحصول على ساعات العمل للحرفي
+// الحصول على ساعات العمل للحرفي الحالي
 exports.getWorkingHours = asyncHandler(async (req, res) => {
   try {
     // البحث عن الحرفي
@@ -119,3 +120,112 @@ exports.getWorkingHours = asyncHandler(async (req, res) => {
       .json({ message: "حدث خطأ أثناء الحصول على ساعات العمل" });
   }
 });
+
+// الحصول على ساعات العمل لحرفي محدد بواسطة معرفه
+exports.getCraftsmanWorkingHours = asyncHandler(async (req, res) => {
+  try {
+    const { craftsmanId } = req.params;
+
+    // التحقق من صحة معرف الحرفي
+    if (!craftsmanId || !mongoose.Types.ObjectId.isValid(craftsmanId)) {
+      return res.status(400).json({ message: "معرف الحرفي غير صالح" });
+    }
+
+    // البحث عن الحرفي
+    const craftsman = await Craftsman.findById(craftsmanId);
+    if (!craftsman) {
+      return res.status(404).json({ message: "لم يتم العثور على الحرفي" });
+    }
+
+    // تحقق من وجود ساعات العمل
+    let workingHoursArray = [];
+
+    // إذا كان لدى الحرفي مصفوفة workingHoursArray، استخدمها
+    if (craftsman.workingHoursArray && craftsman.workingHoursArray.length > 0) {
+      workingHoursArray = craftsman.workingHoursArray;
+    }
+    // وإلا، إذا كان لديه كائن workingHours، قم بتحويله إلى مصفوفة
+    else if (craftsman.workingHours) {
+      const daysOfWeek = [
+        "saturday",
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+      ];
+
+      daysOfWeek.forEach((day) => {
+        if (craftsman.workingHours[day]) {
+          workingHoursArray.push({
+            day,
+            isWorking: !!craftsman.workingHours[day].isWorking,
+            start:
+              craftsman.workingHours[day].start ||
+              craftsman.workingHours[day].from ||
+              "",
+            end:
+              craftsman.workingHours[day].end ||
+              craftsman.workingHours[day].to ||
+              "",
+          });
+        } else {
+          // إضافة يوم بقيم افتراضية إذا لم يكن موجوداً
+          workingHoursArray.push({
+            day,
+            isWorking: false,
+            start: "",
+            end: "",
+          });
+        }
+      });
+
+      // حفظ المصفوفة المحولة في قاعدة البيانات للاستخدام المستقبلي
+      craftsman.workingHoursArray = workingHoursArray;
+      await craftsman.save();
+    }
+    // إذا لم يكن لديه أي من الاثنين، قم بإنشاء مصفوفة افتراضية
+    else {
+      const daysOfWeek = [
+        "saturday",
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+      ];
+
+      daysOfWeek.forEach((day) => {
+        workingHoursArray.push({
+          day,
+          isWorking: false,
+          start: "",
+          end: "",
+        });
+      });
+
+      // حفظ المصفوفة الافتراضية في قاعدة البيانات
+      craftsman.workingHoursArray = workingHoursArray;
+      await craftsman.save();
+    }
+
+    // إرجاع ساعات العمل
+    return res.status(200).json({
+      success: true,
+      workingHours: workingHoursArray,
+    });
+  } catch (error) {
+    console.error("خطأ في الحصول على ساعات العمل للحرفي:", error);
+    return res
+      .status(500)
+      .json({ message: "حدث خطأ أثناء الحصول على ساعات العمل للحرفي" });
+  }
+});
+
+module.exports = {
+  getWorkingHours,
+  updateWorkingHours,
+  getCraftsmanWorkingHours
+};

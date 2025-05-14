@@ -18,7 +18,13 @@ router.put(
   workingHoursController.updateWorkingHours
 );
 
-// مسار الحصول على ساعات العمل للحرفي
+// مسار الحصول على ساعات العمل للحرفي الحالي
 router.get("/", protect, isCraftsman, workingHoursController.getWorkingHours);
+
+// مسار الحصول على ساعات العمل لحرفي محدد بواسطة معرفه
+router.get(
+  "/craftsman/:craftsmanId",
+  workingHoursController.getCraftsmanWorkingHours
+);
 
 module.exports = router;
