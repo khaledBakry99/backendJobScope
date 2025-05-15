@@ -211,10 +211,11 @@ exports.getCraftsmanWorkingHours = asyncHandler(async (req, res) => {
       await craftsman.save();
     }
 
-    // إرجاع ساعات العمل
+    // إرجاع ساعات العمل بالتنسيق المتوقع
     return res.status(200).json({
       success: true,
-      workingHours: workingHoursArray,
+      workingHours: craftsman.workingHours || {},
+      workingHoursArray: workingHoursArray,
     });
   } catch (error) {
     console.error("خطأ في الحصول على ساعات العمل للحرفي:", error);
