@@ -20,6 +20,59 @@ router.get("/:id/streets", craftsmanController.getStreetsInWorkRange);
 // Obtener galería de trabajos de un artesano
 router.get("/:id/gallery", craftsmanController.getCraftsmanGallery);
 
+// Obtener horas de trabajo de un artesano
+router.get("/:id/working-hours", async (req, res) => {
+  try {
+    const craftsmanId = req.params.id;
+    console.log(`Solicitud de horas de trabajo para el artesano ID: ${craftsmanId}`);
+
+    // Importar los modelos necesarios
+    const Craftsman = require("../models/craftsman.model");
+    const WorkingHours = require("../models/workingHours.model");
+
+    // Buscar el artesano
+    const craftsman = await Craftsman.findById(craftsmanId);
+    if (!craftsman) {
+      console.log(`Artesano con ID ${craftsmanId} no encontrado`);
+      return res.status(404).json({ message: "Artesano no encontrado" });
+    }
+
+    // Buscar las horas de trabajo del artesano
+    const workingHours = await WorkingHours.findOne({ craftsman: craftsmanId });
+
+    if (!workingHours) {
+      console.log(`Horas de trabajo para el artesano ID ${craftsmanId} no encontradas`);
+      return res.status(404).json({
+        message: "Horas de trabajo no encontradas",
+        workingHours: {},
+        workingHoursArray: []
+      });
+    }
+
+    console.log(`Horas de trabajo encontradas para el artesano ID ${craftsmanId}:`, workingHours);
+
+    // Convertir el objeto de horas de trabajo a un array para mayor compatibilidad
+    const workingHoursArray = Object.entries(workingHours.workingHours || {}).map(([day, data]) => ({
+      day,
+      isWorking: data.isWorking || false,
+      start: data.start || "",
+      end: data.end || ""
+    }));
+
+    // Devolver las horas de trabajo
+    res.json({
+      workingHours: workingHours.workingHours || {},
+      workingHoursArray
+    });
+  } catch (error) {
+    console.error("Error al obtener las horas de trabajo:", error);
+    res.status(500).json({
+      message: "Error al obtener las horas de trabajo",
+      error: error.message
+    });
+  }
+});
+
 // Buscar artesanos
 router.post(
   "/search",
