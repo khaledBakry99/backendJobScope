@@ -360,7 +360,7 @@ exports.getCurrentUser = asyncHandler(async (req, res) => {
 
 // التحقق من وجود البريد الإلكتروني
 exports.checkEmailExists = asyncHandler(async (req, res) => {
-  const { email, checkFirebase } = req.query;
+  const { email } = req.query;
 
   if (!email) {
     return res.status(400).json({ message: "البريد الإلكتروني مطلوب" });
@@ -368,7 +368,7 @@ exports.checkEmailExists = asyncHandler(async (req, res) => {
 
   console.log(`Checking if email exists in MongoDB: ${email}`);
 
-  // البحث عن المستخدم في قاعدة البيانات MongoDB
+  // البحث عن المستخدم في قاعدة البيانات MongoDB فقط
   const user = await User.findOne({ email });
 
   // إذا كان المستخدم موجودًا في قاعدة البيانات MongoDB، نعيد معلومات عنه
