@@ -49,6 +49,9 @@ router.get("/me", protect, authController.getCurrentUser);
 // التحقق من وجود البريد الإلكتروني
 router.get("/check-email", authController.checkEmailExists);
 
+// التحقق من وجود البريد الإلكتروني في Firebase ولكن غير موجود في قاعدة البيانات
+router.get("/check-firebase-email", authController.checkFirebaseEmailNotInDB);
+
 // التحقق من وجود رقم الهاتف
 router.get("/check-phone", authController.checkPhoneExists);
 
