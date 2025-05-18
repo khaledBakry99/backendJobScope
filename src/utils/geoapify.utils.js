@@ -1,14 +1,7 @@
 // خدمة Geoapify Places API للخادم الخلفي
-const fetch = require("node-fetch");
-
-// التحقق من وجود الحزمة
-if (!fetch) {
-  console.error("Error: node-fetch package is not available");
-  // استخدام fetch العالمي إذا كان متاحًا
-  if (typeof global.fetch === "function") {
-    console.log("Using global fetch instead");
-  }
-}
+// استخدام node-fetch الإصدار 2.x (CommonJS)
+const fetch = require('node-fetch');
+console.log('Using node-fetch version 2.x');
 
 // مفتاح API الخاص بـ Geoapify (مفتاح مجاني للاختبار)
 const GEOAPIFY_API_KEY = "7c7c867d4c3d4b8a9c8e7c5f7c7c867d"; // مفتاح مؤقت للاختبار، يجب استبداله بمفتاح حقيقي في الإنتاج
