@@ -366,11 +366,14 @@ exports.checkEmailExists = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "البريد الإلكتروني مطلوب" });
   }
 
-  // البحث عن المستخدم في قاعدة البيانات
+  console.log(`Checking if email exists in MongoDB: ${email}`);
+
+  // البحث عن المستخدم في قاعدة البيانات MongoDB
   const user = await User.findOne({ email });
 
-  // إذا كان المستخدم موجودًا في قاعدة البيانات، نعيد معلومات عنه
+  // إذا كان المستخدم موجودًا في قاعدة البيانات MongoDB، نعيد معلومات عنه
   if (user) {
+    console.log(`Email ${email} found in MongoDB, user type: ${user.userType}`);
     return res.json({
       exists: true,
       inMongoDB: true,
@@ -379,7 +382,8 @@ exports.checkEmailExists = asyncHandler(async (req, res) => {
     });
   }
 
-  // إذا لم يكن المستخدم موجودًا في قاعدة البيانات، نعيد أنه غير موجود
+  // إذا لم يكن المستخدم موجودًا في قاعدة البيانات MongoDB، نعيد أنه غير موجود
+  console.log(`Email ${email} not found in MongoDB`);
   res.json({
     exists: false,
     inMongoDB: false,
