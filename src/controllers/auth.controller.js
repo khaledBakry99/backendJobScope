@@ -45,7 +45,7 @@ exports.register = asyncHandler(async (req, res) => {
     firebaseUid, // طباعة معرف Firebase إذا كان موجودًا
   });
 
-  // التحقق مما إذا كان المستخدم موجودًا بالفعل
+  // التحقق مما إذا كان المستخدم موجودًا بالفعل في قاعدة البيانات MongoDB
   const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
   if (existingUser) {
     return res.status(400).json({
@@ -54,6 +54,16 @@ exports.register = asyncHandler(async (req, res) => {
           ? "البريد الإلكتروني مستخدم بالفعل"
           : "رقم الهاتف مستخدم بالفعل",
     });
+  }
+
+  // إذا كان هناك معرف Firebase، نتحقق مما إذا كان هناك مستخدم آخر يستخدم نفس المعرف
+  if (firebaseUid) {
+    const existingFirebaseUser = await User.findOne({ firebaseUid });
+    if (existingFirebaseUser && existingFirebaseUser.email !== email) {
+      return res.status(400).json({
+        message: "معرف Firebase مستخدم بالفعل مع حساب آخر",
+      });
+    }
   }
 
   // معالجة الصورة الشخصية إذا كانت موجودة
@@ -350,15 +360,31 @@ exports.getCurrentUser = asyncHandler(async (req, res) => {
 
 // التحقق من وجود البريد الإلكتروني
 exports.checkEmailExists = asyncHandler(async (req, res) => {
-  const { email } = req.query;
+  const { email, checkFirebase } = req.query;
 
   if (!email) {
     return res.status(400).json({ message: "البريد الإلكتروني مطلوب" });
   }
 
+  // البحث عن المستخدم في قاعدة البيانات
   const user = await User.findOne({ email });
 
-  res.json({ exists: !!user });
+  // إذا كان المستخدم موجودًا في قاعدة البيانات، نعيد معلومات عنه
+  if (user) {
+    return res.json({
+      exists: true,
+      inMongoDB: true,
+      userType: user.userType,
+      message: "البريد الإلكتروني مستخدم بالفعل في قاعدة البيانات",
+    });
+  }
+
+  // إذا لم يكن المستخدم موجودًا في قاعدة البيانات، نعيد أنه غير موجود
+  res.json({
+    exists: false,
+    inMongoDB: false,
+    message: "البريد الإلكتروني غير مستخدم في قاعدة البيانات",
+  });
 });
 
 // التحقق من وجود رقم الهاتف
@@ -580,14 +606,17 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
     // البحث عن المستخدم باستخدام معرف Firebase أو معرف Google أو البريد الإلكتروني
     if (uid) {
       user = await User.findOne({ firebaseUid: uid });
+      console.log("Searching for user with Firebase UID:", uid, "Result:", user ? "Found" : "Not found");
     }
 
     if (!user && googleId) {
       user = await User.findOne({ googleId: googleId });
+      console.log("Searching for user with Google ID:", googleId, "Result:", user ? "Found" : "Not found");
     }
 
     if (!user && email) {
       user = await User.findOne({ email: email });
+      console.log("Searching for user with Email:", email, "Result:", user ? "Found" : "Not found");
     }
 
     if (user) {
