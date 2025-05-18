@@ -361,48 +361,6 @@ exports.checkEmailExists = asyncHandler(async (req, res) => {
   res.json({ exists: !!user });
 });
 
-// التحقق من وجود البريد الإلكتروني في Firebase ولكن غير موجود في قاعدة البيانات
-exports.checkFirebaseEmailNotInDB = asyncHandler(async (req, res) => {
-  const { email, firebaseUid } = req.query;
-
-  if (!email) {
-    return res.status(400).json({ message: "البريد الإلكتروني مطلوب" });
-  }
-
-  // التحقق من وجود المستخدم في قاعدة البيانات
-  const user = await User.findOne({ email });
-
-  // إذا كان المستخدم موجودًا في قاعدة البيانات، نعيد exists: true
-  if (user) {
-    return res.json({
-      exists: true,
-      inDatabase: true,
-      message: "البريد الإلكتروني موجود في قاعدة البيانات"
-    });
-  }
-
-  // إذا تم تمرير معرف Firebase، نتحقق مما إذا كان هناك مستخدم بهذا المعرف
-  if (firebaseUid) {
-    const userByFirebaseUid = await User.findOne({ firebaseUid });
-
-    if (userByFirebaseUid) {
-      return res.json({
-        exists: true,
-        inDatabase: true,
-        message: "معرف Firebase موجود في قاعدة البيانات"
-      });
-    }
-  }
-
-  // إذا لم يكن المستخدم موجودًا في قاعدة البيانات، نعيد exists: false
-  // هذا يعني أن البريد الإلكتروني قد يكون موجودًا في Firebase ولكن ليس في قاعدة البيانات
-  return res.json({
-    exists: false,
-    inDatabase: false,
-    message: "البريد الإلكتروني غير موجود في قاعدة البيانات"
-  });
-});
-
 // التحقق من وجود رقم الهاتف
 exports.checkPhoneExists = asyncHandler(async (req, res) => {
   const { phone } = req.query;
@@ -635,7 +593,7 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
     // إذا لم يتم العثور على المستخدم، نتحقق مما إذا كان هناك مستخدم آخر بنفس البريد الإلكتروني
     // هذا يمكن أن يحدث إذا كان المستخدم قد أنشأ حسابًا في Firebase ولكن لم يكمل التسجيل في قاعدة البيانات
     if (!user && email) {
-      console.log("User not found with email, checking if Firebase account exists but not in DB");
+      console.log("User not found with email, proceeding with registration");
 
       // يمكننا المتابعة بإنشاء حساب جديد حتى لو كان البريد الإلكتروني موجودًا في Firebase
       // لأن المستخدم قد تحقق من البريد الإلكتروني بالفعل
