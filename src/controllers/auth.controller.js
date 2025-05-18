@@ -30,7 +30,6 @@ exports.register = asyncHandler(async (req, res) => {
     userType,
     address,
     profilePicture,
-    firebaseUid, // إضافة معرف Firebase
   } = req.body;
 
   // طباعة البيانات المستلمة للتشخيص
@@ -42,7 +41,6 @@ exports.register = asyncHandler(async (req, res) => {
     address,
     hasProfilePicture: !!profilePicture,
     profilePictureLength: profilePicture ? profilePicture.length : 0,
-    firebaseUid, // طباعة معرف Firebase إذا كان موجودًا
   });
 
   // التحقق مما إذا كان المستخدم موجودًا بالفعل
@@ -99,7 +97,6 @@ exports.register = asyncHandler(async (req, res) => {
     userType,
     address,
     profilePicture: profilePicturePath,
-    firebaseUid: firebaseUid || null, // إضافة معرف Firebase إذا كان موجودًا
   });
 
   await user.save();
@@ -588,15 +585,6 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
 
     if (!user && email) {
       user = await User.findOne({ email: email });
-    }
-
-    // إذا لم يتم العثور على المستخدم، نتحقق مما إذا كان هناك مستخدم آخر بنفس البريد الإلكتروني
-    // هذا يمكن أن يحدث إذا كان المستخدم قد أنشأ حسابًا في Firebase ولكن لم يكمل التسجيل في قاعدة البيانات
-    if (!user && email) {
-      console.log("User not found with email, proceeding with registration");
-
-      // يمكننا المتابعة بإنشاء حساب جديد حتى لو كان البريد الإلكتروني موجودًا في Firebase
-      // لأن المستخدم قد تحقق من البريد الإلكتروني بالفعل
     }
 
     if (user) {
