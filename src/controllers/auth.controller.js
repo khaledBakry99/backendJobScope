@@ -30,6 +30,7 @@ exports.register = asyncHandler(async (req, res) => {
     userType,
     address,
     profilePicture,
+    firebaseUid, // إضافة معرف Firebase
   } = req.body;
 
   // طباعة البيانات المستلمة للتشخيص
@@ -41,6 +42,7 @@ exports.register = asyncHandler(async (req, res) => {
     address,
     hasProfilePicture: !!profilePicture,
     profilePictureLength: profilePicture ? profilePicture.length : 0,
+    firebaseUid, // طباعة معرف Firebase إذا كان موجودًا
   });
 
   // التحقق مما إذا كان المستخدم موجودًا بالفعل
@@ -97,6 +99,7 @@ exports.register = asyncHandler(async (req, res) => {
     userType,
     address,
     profilePicture: profilePicturePath,
+    firebaseUid: firebaseUid || null, // إضافة معرف Firebase إذا كان موجودًا
   });
 
   await user.save();
