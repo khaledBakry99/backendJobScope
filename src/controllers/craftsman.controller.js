@@ -393,6 +393,13 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
     mosquesInWorkRange,
   } = req.body;
 
+  // طباعة البيانات المستلمة للتصحيح
+  console.log("بيانات الأماكن المستلمة من الطلب:", {
+    streetsInWorkRange: streetsInWorkRange ? streetsInWorkRange.length : 0,
+    hospitalsInWorkRange: hospitalsInWorkRange ? hospitalsInWorkRange.length : 0,
+    mosquesInWorkRange: mosquesInWorkRange ? mosquesInWorkRange.length : 0,
+  });
+
   // Buscar perfil de artesano
   let craftsman = await Craftsman.findOne({ user: req.user._id });
 
@@ -479,33 +486,26 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
     craftsman.workingHours = normalizedWorkingHours;
   }
 
-  // تحديث الشوارع والمساجد والمستشفيات إذا تم توفيرها في الطلب
-  console.log("بيانات الأماكن المستلمة في الطلب:", {
-    streetsInWorkRange: streetsInWorkRange ? streetsInWorkRange.length : 0,
-    hospitalsInWorkRange: hospitalsInWorkRange ? hospitalsInWorkRange.length : 0,
-    mosquesInWorkRange: mosquesInWorkRange ? mosquesInWorkRange.length : 0,
-  });
-
+  // تحديث الشوارع والمستشفيات والمساجد إذا تم توفيرها في الطلب
   if (streetsInWorkRange) {
-    console.log("تحديث الشوارع من البيانات المرسلة:", streetsInWorkRange.length);
     craftsman.streetsInWorkRange = streetsInWorkRange;
+    console.log("تم تحديث الشوارع من الطلب:", streetsInWorkRange.length);
   }
 
   if (hospitalsInWorkRange) {
-    console.log("تحديث المستشفيات من البيانات المرسلة:", hospitalsInWorkRange.length);
     craftsman.hospitalsInWorkRange = hospitalsInWorkRange;
+    console.log("تم تحديث المستشفيات من الطلب:", hospitalsInWorkRange.length);
   }
 
   if (mosquesInWorkRange) {
-    console.log("تحديث المساجد من البيانات المرسلة:", mosquesInWorkRange.length);
     craftsman.mosquesInWorkRange = mosquesInWorkRange;
+    console.log("تم تحديث المساجد من الطلب:", mosquesInWorkRange.length);
   }
 
-  // إذا تم تغيير الموقع أو نطاق العمل ولم يتم توفير البيانات، قم بتحديث الشوارع والأحياء
+  // إذا تم تغيير الموقع أو نطاق العمل ولم يتم توفير الشوارع والمستشفيات والمساجد في الطلب، قم بتحديثها تلقائيًا
   if (shouldUpdateStreets && craftsman.location && craftsman.workRadius &&
-      (!streetsInWorkRange || !hospitalsInWorkRange || !mosquesInWorkRange)) {
+      (!streetsInWorkRange && !hospitalsInWorkRange && !mosquesInWorkRange)) {
     try {
-      console.log("جلب بيانات الأماكن من API لأنها غير متوفرة في الطلب");
       // الحصول على الشوارع والمستشفيات والمساجد ضمن نطاق العمل
       const { getStreetsInRadius } = require("../utils/geo.utils");
       const placesData = await getStreetsInRadius(
@@ -514,16 +514,10 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
         craftsman.workRadius
       );
 
-      // تحديث الشوارع والمستشفيات والمساجد في ملف الحرفي إذا لم يتم توفيرها في الطلب
-      if (!streetsInWorkRange) {
-        craftsman.streetsInWorkRange = placesData.streets || [];
-      }
-      if (!hospitalsInWorkRange) {
-        craftsman.hospitalsInWorkRange = placesData.hospitals || [];
-      }
-      if (!mosquesInWorkRange) {
-        craftsman.mosquesInWorkRange = placesData.mosques || [];
-      }
+      // تحديث الشوارع والمستشفيات والمساجد في ملف الحرفي
+      craftsman.streetsInWorkRange = placesData.streets || [];
+      craftsman.hospitalsInWorkRange = placesData.hospitals || [];
+      craftsman.mosquesInWorkRange = placesData.mosques || [];
 
       // الحصول على الأحياء ضمن نطاق العمل
       const calculateDistance = (lat1, lng1, lat2, lng2) => {
