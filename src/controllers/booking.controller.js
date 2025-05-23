@@ -295,11 +295,11 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
         .json({ message: "غير مصرح لك بإلغاء الطلب بسبب انتهاء الوقت" });
     }
 
-    // يمكن إلغاء الطلب بسبب انتهاء الوقت فقط إذا كان قيد الانتظار
-    if (booking.status !== "pending") {
+    // يمكن إلغاء الطلب بسبب انتهاء الوقت إذا كان قيد الانتظار أو مقبولاً
+    if (booking.status !== "pending" && booking.status !== "accepted") {
       return res.status(400).json({
         message:
-          "يمكن إلغاء الطلبات بسبب انتهاء الوقت فقط إذا كانت قيد الانتظار",
+          "يمكن إلغاء الطلبات بسبب انتهاء الوقت فقط إذا كانت قيد الانتظار أو مقبولة",
       });
     }
   } else if (status === "completed") {
