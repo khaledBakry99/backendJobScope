@@ -28,13 +28,13 @@ exports.updateWorkingHours = asyncHandler(async (req, res) => {
     if (workingHours && typeof workingHours === "object") {
       // معالجة كل يوم من أيام الأسبوع
       const days = [
+        "saturday",
+        "sunday",
         "monday",
         "tuesday",
         "wednesday",
         "thursday",
         "friday",
-        "saturday",
-        "sunday",
       ];
 
       days.forEach((day) => {
@@ -228,5 +228,5 @@ exports.getCraftsmanWorkingHours = asyncHandler(async (req, res) => {
 module.exports = {
   updateWorkingHours: exports.updateWorkingHours,
   getWorkingHours: exports.getWorkingHours,
-  getCraftsmanWorkingHours: exports.getCraftsmanWorkingHours
+  getCraftsmanWorkingHours: exports.getCraftsmanWorkingHours,
 };

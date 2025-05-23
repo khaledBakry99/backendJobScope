@@ -260,19 +260,6 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Reserva no encontrada" });
   }
 
-  console.log("تفاصيل الطلب قبل التحديث:", {
-    bookingId: booking._id,
-    currentStatus: booking.status,
-    requestedStatus: status,
-    bookingDate: booking.date,
-    bookingEndDate: booking.endDate,
-    bookingTime: booking.time,
-    userId: req.user._id,
-    userType: req.user.userType,
-    userName: req.user.name,
-    userEmail: req.user.email
-  });
-
   // Verificar permisos según el estado
   const craftsmanProfile = await Craftsman.findOne({ user: req.user._id });
   const isCraftsman =
@@ -301,50 +288,20 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
       });
     }
   } else if (status === "cancelled_expired") {
-    console.log("معالجة طلب إلغاء منتهي الصلاحية:", {
-      isClient,
-      isCraftsman,
-      userType: req.user.userType,
-      bookingStatus: booking.status,
-      userId: req.user._id,
-      bookingClientId: booking.client._id,
-      bookingCraftsmanId: booking.craftsman._id,
-    });
-
-    // للإلغاء بسبب انتهاء الوقت، نسمح للعميل أو الحرفي أو المسؤول
-    // أو إذا كان الطلب منتهي الصلاحية فعلاً (تحقق إضافي)
-    const isExpiredBooking = (() => {
-      try {
-        const bookingEndDate = booking.endDate ? new Date(booking.endDate) : new Date(booking.date);
-        const now = new Date();
-
-        if (booking.time && !booking.endDate) {
-          const [hours, minutes] = booking.time.split(":");
-          bookingEndDate.setHours(parseInt(hours), parseInt(minutes));
-        }
-
-        return now > bookingEndDate;
-      } catch (error) {
-        return false;
-      }
-    })();
-
-    if (!isClient && !isCraftsman && req.user.userType !== "admin" && !isExpiredBooking) {
-      console.log("رفض الطلب: المستخدم ليس عميل أو حرفي أو مسؤول والطلب ليس منتهي الصلاحية");
+    // الإلغاء بسبب انتهاء الوقت يمكن أن يتم من النظام أو العميل
+    if (!isClient && req.user.userType !== "admin") {
       return res
         .status(403)
         .json({ message: "غير مصرح لك بإلغاء الطلب بسبب انتهاء الوقت" });
     }
 
-    // يمكن إلغاء الطلب بسبب انتهاء الوقت إذا كان قيد الانتظار أو مقبولاً
-    if (booking.status !== "pending" && booking.status !== "accepted") {
-      console.log(`محاولة إلغاء طلب بحالة غير مسموحة: ${booking.status}`);
+    // يمكن إلغاء الطلب بسبب انتهاء الوقت فقط إذا كان قيد الانتظار
+    if (booking.status !== "pending") {
       return res.status(400).json({
-        message: `يمكن إلغاء الطلبات بسبب انتهاء الوقت فقط إذا كانت قيد الانتظار أو مقبولة. الحالة الحالية: ${booking.status}`,
+        message:
+          "يمكن إلغاء الطلبات بسبب انتهاء الوقت فقط إذا كانت قيد الانتظار",
       });
     }
-
-    console.log("تم قبول طلب الإلغاء بسبب انتهاء الوقت");
   } else if (status === "completed") {
     // Solo el artesano puede marcar como completada
     if (!isCraftsman) {

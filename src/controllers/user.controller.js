@@ -9,17 +9,6 @@ exports.getAllUsers = asyncHandler(async (req, res) => {
   res.json(users);
 });
 
-// Obtener el usuario actual (me)
-exports.getCurrentUser = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("-password");
-
-  if (!user) {
-    return res.status(404).json({ message: "Usuario no encontrado" });
-  }
-
-  res.json(user);
-});
-
 // Obtener un usuario por ID
 exports.getUserById = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id).select("-password");
