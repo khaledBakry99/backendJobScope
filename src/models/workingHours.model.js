@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const workingHoursSchema = new mongoose.Schema({
   day: {
     type: String,
-    enum: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+    enum: ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday"],
     required: true
   },
   isWorking: {
