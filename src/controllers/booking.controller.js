@@ -269,6 +269,8 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
     bookingTime: booking.time,
     userId: req.user._id,
     userType: req.user.userType,
+    userName: req.user.name,
+    userEmail: req.user.email
   });
 
   // Verificar permisos según el estado
@@ -299,8 +301,36 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
       });
     }
   } else if (status === "cancelled_expired") {
-    // الإلغاء بسبب انتهاء الوقت يمكن أن يتم من النظام أو العميل أو الحرفي
-    if (!isClient && !isCraftsman && req.user.userType !== "admin") {
+    console.log("معالجة طلب إلغاء منتهي الصلاحية:", {
+      isClient,
+      isCraftsman,
+      userType: req.user.userType,
+      bookingStatus: booking.status,
+      userId: req.user._id,
+      bookingClientId: booking.client._id,
+      bookingCraftsmanId: booking.craftsman._id,
+    });
+
+    // للإلغاء بسبب انتهاء الوقت، نسمح للعميل أو الحرفي أو المسؤول
+    // أو إذا كان الطلب منتهي الصلاحية فعلاً (تحقق إضافي)
+    const isExpiredBooking = (() => {
+      try {
+        const bookingEndDate = booking.endDate ? new Date(booking.endDate) : new Date(booking.date);
+        const now = new Date();
+
+        if (booking.time && !booking.endDate) {
+          const [hours, minutes] = booking.time.split(":");
+          bookingEndDate.setHours(parseInt(hours), parseInt(minutes));
+        }
+
+        return now > bookingEndDate;
+      } catch (error) {
+        return false;
+      }
+    })();
+
+    if (!isClient && !isCraftsman && req.user.userType !== "admin" && !isExpiredBooking) {
+      console.log("رفض الطلب: المستخدم ليس عميل أو حرفي أو مسؤول والطلب ليس منتهي الصلاحية");
       return res
         .status(403)
         .json({ message: "غير مصرح لك بإلغاء الطلب بسبب انتهاء الوقت" });
@@ -313,6 +343,8 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
         message: `يمكن إلغاء الطلبات بسبب انتهاء الوقت فقط إذا كانت قيد الانتظار أو مقبولة. الحالة الحالية: ${booking.status}`,
       });
     }
+
+    console.log("تم قبول طلب الإلغاء بسبب انتهاء الوقت");
   } else if (status === "completed") {
     // Solo el artesano puede marcar como completada
     if (!isCraftsman) {
