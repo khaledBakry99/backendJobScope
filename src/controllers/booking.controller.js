@@ -268,7 +268,7 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
     bookingEndDate: booking.endDate,
     bookingTime: booking.time,
     userId: req.user._id,
-    userType: req.user.userType
+    userType: req.user.userType,
   });
 
   // Verificar permisos según el estado
@@ -299,8 +299,8 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
       });
     }
   } else if (status === "cancelled_expired") {
-    // الإلغاء بسبب انتهاء الوقت يمكن أن يتم من النظام أو العميل
-    if (!isClient && req.user.userType !== "admin") {
+    // الإلغاء بسبب انتهاء الوقت يمكن أن يتم من النظام أو العميل أو الحرفي
+    if (!isClient && !isCraftsman && req.user.userType !== "admin") {
       return res
         .status(403)
         .json({ message: "غير مصرح لك بإلغاء الطلب بسبب انتهاء الوقت" });
@@ -308,9 +308,9 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
 
     // يمكن إلغاء الطلب بسبب انتهاء الوقت إذا كان قيد الانتظار أو مقبولاً
     if (booking.status !== "pending" && booking.status !== "accepted") {
+      console.log(`محاولة إلغاء طلب بحالة غير مسموحة: ${booking.status}`);
       return res.status(400).json({
-        message:
-          "يمكن إلغاء الطلبات بسبب انتهاء الوقت فقط إذا كانت قيد الانتظار أو مقبولة",
+        message: `يمكن إلغاء الطلبات بسبب انتهاء الوقت فقط إذا كانت قيد الانتظار أو مقبولة. الحالة الحالية: ${booking.status}`,
       });
     }
   } else if (status === "completed") {
