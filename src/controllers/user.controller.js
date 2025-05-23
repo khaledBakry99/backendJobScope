@@ -28,11 +28,12 @@ exports.updateUserProfile = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { name, phone, address, profilePicture, bio } = req.body;
+  const { name, email, phone, address, profilePicture, bio } = req.body;
 
   // Imprimir los datos recibidos para depuración
   console.log("Updating user profile with data:", {
     name,
+    email,
     phone,
     address,
     bio,
@@ -51,6 +52,7 @@ exports.updateUserProfile = asyncHandler(async (req, res) => {
 
   // Actualizar campos
   if (name) user.name = name;
+  if (email) user.email = email;
   if (phone) user.phone = phone;
   if (address) user.address = address;
   // تحديث النبذة إذا كانت موجودة
