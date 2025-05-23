@@ -95,13 +95,13 @@ const craftsmanSchema = new mongoose.Schema(
         end: String
       },
       default: {
+        saturday: { isWorking: false, start: "", end: "" },
+        sunday: { isWorking: false, start: "", end: "" },
         monday: { isWorking: false, start: "", end: "" },
         tuesday: { isWorking: false, start: "", end: "" },
         wednesday: { isWorking: false, start: "", end: "" },
         thursday: { isWorking: false, start: "", end: "" },
-        friday: { isWorking: false, start: "", end: "" },
-        saturday: { isWorking: false, start: "", end: "" },
-        sunday: { isWorking: false, start: "", end: "" }
+        friday: { isWorking: false, start: "", end: "" }
       }
     },
     // ساعات العمل كمصفوفة (للتوافق مع الواجهة الجديدة)
