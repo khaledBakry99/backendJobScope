@@ -10,7 +10,7 @@ const router = express.Router();
 router.use(protect);
 
 // Obtener perfil del usuario actual
-router.get("/me", userController.getCurrentUser);
+router.get("/me", userController.getUserById);
 
 // Actualizar perfil de usuario
 router.put(
