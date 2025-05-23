@@ -388,17 +388,7 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
     address,
     available,
     workingHours,
-    streetsInWorkRange,
-    hospitalsInWorkRange,
-    mosquesInWorkRange,
   } = req.body;
-
-  // طباعة البيانات المستلمة للتصحيح
-  console.log("بيانات الأماكن المستلمة من الطلب:", {
-    streetsInWorkRange: streetsInWorkRange ? streetsInWorkRange.length : 0,
-    hospitalsInWorkRange: hospitalsInWorkRange ? hospitalsInWorkRange.length : 0,
-    mosquesInWorkRange: mosquesInWorkRange ? mosquesInWorkRange.length : 0,
-  });
 
   // Buscar perfil de artesano
   let craftsman = await Craftsman.findOne({ user: req.user._id });
@@ -412,7 +402,23 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
   // Actualizar campos
   if (professions) craftsman.professions = professions;
   if (specializations) craftsman.specializations = specializations;
-  if (bio) craftsman.bio = bio;
+
+  // طباعة النبذة للتصحيح
+  console.log("النبذة المستلمة في updateCraftsmanProfile:", {
+    receivedBio: bio,
+    currentBio: craftsman.bio,
+    bioType: typeof bio,
+    bioLength: bio ? bio.length : 0,
+    bioEmpty: bio === "",
+    bioUndefined: bio === undefined,
+    bioNull: bio === null,
+  });
+
+  // تحديث النبذة فقط إذا كانت موجودة وليست فارغة
+  if (bio !== undefined) {
+    craftsman.bio = bio;
+    console.log("تم تحديث النبذة إلى:", bio);
+  }
 
   // التأكد من أن الخصائص مصفوفة
   if (features) {
@@ -486,25 +492,8 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
     craftsman.workingHours = normalizedWorkingHours;
   }
 
-  // تحديث الشوارع والمستشفيات والمساجد إذا تم توفيرها في الطلب
-  if (streetsInWorkRange) {
-    craftsman.streetsInWorkRange = streetsInWorkRange;
-    console.log("تم تحديث الشوارع من الطلب:", streetsInWorkRange.length);
-  }
-
-  if (hospitalsInWorkRange) {
-    craftsman.hospitalsInWorkRange = hospitalsInWorkRange;
-    console.log("تم تحديث المستشفيات من الطلب:", hospitalsInWorkRange.length);
-  }
-
-  if (mosquesInWorkRange) {
-    craftsman.mosquesInWorkRange = mosquesInWorkRange;
-    console.log("تم تحديث المساجد من الطلب:", mosquesInWorkRange.length);
-  }
-
-  // إذا تم تغيير الموقع أو نطاق العمل ولم يتم توفير الشوارع والمستشفيات والمساجد في الطلب، قم بتحديثها تلقائيًا
-  if (shouldUpdateStreets && craftsman.location && craftsman.workRadius &&
-      (!streetsInWorkRange && !hospitalsInWorkRange && !mosquesInWorkRange)) {
+  // إذا تم تغيير الموقع أو نطاق العمل، قم بتحديث الشوارع والأحياء
+  if (shouldUpdateStreets && craftsman.location && craftsman.workRadius) {
     try {
       // الحصول على الشوارع والمستشفيات والمساجد ضمن نطاق العمل
       const { getStreetsInRadius } = require("../utils/geo.utils");
@@ -579,6 +568,14 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
   // تحويل البيانات إلى كائن عادي للتعديل
   const craftsmanObj = craftsman.toObject();
 
+  // طباعة النبذة في الكائن المحول للتصحيح
+  console.log("النبذة في الكائن المحول:", {
+    bioInCraftsmanObj: craftsmanObj.bio,
+    bioInCraftsman: craftsman.bio,
+    bioType: typeof craftsmanObj.bio,
+    bioLength: craftsmanObj.bio ? craftsmanObj.bio.length : 0,
+  });
+
   // إضافة حقل الصورة من بيانات المستخدم إذا كانت متوفرة
   if (
     craftsmanObj.user &&
@@ -610,6 +607,13 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
       workingHoursArray
     );
   }
+
+  // طباعة النبذة قبل إرجاع البيانات
+  console.log("النبذة قبل إرجاع البيانات:", {
+    bioInCraftsmanObj: craftsmanObj.bio,
+    bioType: typeof craftsmanObj.bio,
+    bioLength: craftsmanObj.bio ? craftsmanObj.bio.length : 0,
+  });
 
   res.json(craftsmanObj);
 });
