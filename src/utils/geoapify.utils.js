@@ -2,7 +2,7 @@
 const fetch = require("node-fetch");
 
 // مفتاح API الخاص بـ Geoapify (يجب الحصول على مفتاح مجاني من موقع Geoapify)
-const GEOAPIFY_API_KEY = "9bbb883a-1922-4ff1-8dd0-313826f87f7d"; // مفتاح API الخاص بالمشروع
+const GEOAPIFY_API_KEY = "cec91b0487f547b18fa80dd2fe849fb5"; // مفتاح API الخاص بالمشروع
 
 /**
  * دالة للحصول على الشوارع والمستشفيات والمساجد ضمن نطاق معين باستخدام Geoapify Places API
