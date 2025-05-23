@@ -260,6 +260,17 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Reserva no encontrada" });
   }
 
+  console.log("تفاصيل الطلب قبل التحديث:", {
+    bookingId: booking._id,
+    currentStatus: booking.status,
+    requestedStatus: status,
+    bookingDate: booking.date,
+    bookingEndDate: booking.endDate,
+    bookingTime: booking.time,
+    userId: req.user._id,
+    userType: req.user.userType
+  });
+
   // Verificar permisos según el estado
   const craftsmanProfile = await Craftsman.findOne({ user: req.user._id });
   const isCraftsman =
