@@ -4,6 +4,9 @@ const fetch = require("node-fetch");
 // مفتاح API الخاص بـ Geoapify (يجب الحصول على مفتاح مجاني من موقع Geoapify)
 const GEOAPIFY_API_KEY = "cec91b0487f547b18fa80dd2fe849fb5"; // مفتاح API الخاص بالمشروع
 
+// مفتاح API الجديد (إذا كان المفتاح القديم لا يعمل)
+// const GEOAPIFY_API_KEY = "9bbb883a-1922-4ff1-8dd0-313826f87f7d";
+
 /**
  * دالة للحصول على الشوارع والمستشفيات والمساجد ضمن نطاق معين باستخدام Geoapify Places API
  * @param {number} lat - خط العرض
@@ -144,7 +147,7 @@ const fetchMosques = async (lat, lng, radius) => {
             (feature.properties.categories &&
               feature.properties.categories.includes("religion.muslim")) ||
             feature.properties.religion === "muslim" ||
-              feature.properties.religion === "islam"
+            feature.properties.religion === "islam"
           ) {
             mosques.push(name);
           }
