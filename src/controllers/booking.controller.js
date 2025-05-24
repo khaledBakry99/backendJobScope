@@ -61,6 +61,7 @@ const updateExpiredBookings = async () => {
 const cancelExpiredBookings = async () => {
   try {
     const now = new Date();
+    console.log(`🕐 الوقت الحالي: ${now.toISOString()}`);
 
     // البحث عن الطلبات التي تجاوز تاريخ ووقت انتهائها الوقت الحالي
     // وحالتها pending فقط (لا نلغي الطلبات المقبولة أو المكتملة)
@@ -78,16 +79,39 @@ const cancelExpiredBookings = async () => {
         },
       });
 
+    console.log(`📋 تم العثور على ${expiredBookings.length} طلب في حالة pending مع تاريخ ووقت انتهاء`);
+
     let cancelledCount = 0;
 
     for (const booking of expiredBookings) {
       // تحويل تاريخ ووقت النهاية إلى كائن Date
       const endDateTime = new Date(booking.endDate);
-      const [hours, minutes] = booking.endTime.split(":");
+
+      // التحقق من صحة وقت الانتهاء
+      if (!booking.endTime || typeof booking.endTime !== 'string') {
+        console.log(`⚠️ وقت الانتهاء غير صحيح للطلب ${booking._id}: ${booking.endTime}`);
+        continue;
+      }
+
+      const timeParts = booking.endTime.split(":");
+      if (timeParts.length !== 2) {
+        console.log(`⚠️ تنسيق وقت الانتهاء غير صحيح للطلب ${booking._id}: ${booking.endTime}`);
+        continue;
+      }
+
+      const [hours, minutes] = timeParts;
       endDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+      console.log(`📅 الطلب ${booking._id}:`);
+      console.log(`   - تاريخ الانتهاء: ${booking.endDate}`);
+      console.log(`   - وقت الانتهاء: ${booking.endTime}`);
+      console.log(`   - تاريخ ووقت الانتهاء المدمج: ${endDateTime.toISOString()}`);
+      console.log(`   - هل انتهى؟ ${now > endDateTime}`);
 
       // التحقق من أن الوقت الحالي تجاوز وقت انتهاء الطلب
       if (now > endDateTime) {
+        console.log(`🔄 إلغاء الطلب ${booking._id}...`);
+
         // تحديث حالة الطلب إلى ملغي بسبب انتهاء الوقت
         booking.status = "cancelled_expired";
         await booking.save();
@@ -127,14 +151,14 @@ const cancelExpiredBookings = async () => {
           await craftsmanNotification.save();
         }
 
-        console.log(`تم إلغاء الطلب ${booking._id} تلقائياً بسبب انتهاء الوقت`);
+        console.log(`✅ تم إلغاء الطلب ${booking._id} تلقائياً بسبب انتهاء الوقت`);
       }
     }
 
-    console.log(`تم إلغاء ${cancelledCount} طلب تلقائياً بسبب انتهاء الوقت`);
+    console.log(`📊 تم إلغاء ${cancelledCount} طلب تلقائياً بسبب انتهاء الوقت`);
     return cancelledCount;
   } catch (error) {
-    console.error("خطأ في إلغاء الطلبات المنتهية الصلاحية:", error);
+    console.error("❌ خطأ في إلغاء الطلبات المنتهية الصلاحية:", error);
     return 0;
   }
 };
@@ -275,6 +299,13 @@ exports.getMyBookings = asyncHandler(async (req, res) => {
 
 // Obtener una reserva por ID
 exports.getBookingById = asyncHandler(async (req, res) => {
+  // تشغيل فحص الطلبات المنتهية الصلاحية قبل جلب الطلب
+  try {
+    await cancelExpiredBookings();
+  } catch (error) {
+    console.error('خطأ في فحص الطلبات المنتهية:', error);
+  }
+
   const booking = await Booking.findById(req.params.id)
     .populate({
       path: "craftsman",
