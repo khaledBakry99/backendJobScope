@@ -147,15 +147,7 @@ exports.createBooking = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const {
-    craftsmanId,
-    date,
-    time,اكمل
-    endDate,
-    endTime,
-    location,
-    description,
-  } = req.body;
+  const { craftsmanId, date, time, endDate, endTime, location, description } = req.body;
 
   // Verificar que el artesano existe
   const craftsman = await Craftsman.findById(craftsmanId).populate("user");
@@ -212,7 +204,11 @@ exports.createBooking = asyncHandler(async (req, res) => {
 // Obtener todas las reservas del usuario actual
 exports.getMyBookings = asyncHandler(async (req, res) => {
   // تشغيل فحص الطلبات المنتهية الصلاحية قبل جلب الطلبات
-  await cancelExpiredBookings();
+  try {
+    await cancelExpiredBookings();
+  } catch (error) {
+    console.error('خطأ في فحص الطلبات المنتهية:', error);
+  }
 
   let bookings;
 
@@ -601,7 +597,7 @@ exports.processExpiredBookings = asyncHandler(async (req, res) => {
 });
 
 // إلغاء الطلبات المنتهية الصلاحية تلقائياً
-exports.cancelExpiredBookings = asyncHandler(async (req, res) => {
+exports.cancelExpiredBookingsEndpoint = asyncHandler(async (req, res) => {
   const count = await cancelExpiredBookings();
 
   res.json({
