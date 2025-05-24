@@ -66,7 +66,7 @@ router.post(
 );
 
 // إلغاء الطلبات المنتهية الصلاحية تلقائياً
-router.post("/cancel-expired", bookingController.cancelExpiredBookings);
+router.post("/cancel-expired", bookingController.cancelExpiredBookingsEndpoint);
 
 // Editar una reserva (solo dentro de los primeros 5 minutos)
 router.put(
