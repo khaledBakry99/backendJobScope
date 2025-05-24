@@ -57,6 +57,88 @@ const updateExpiredBookings = async () => {
   }
 };
 
+// وظيفة للتحقق من الطلبات المنتهية الصلاحية وإلغائها تلقائياً
+const cancelExpiredBookings = async () => {
+  try {
+    const now = new Date();
+
+    // البحث عن الطلبات التي تجاوز تاريخ ووقت انتهائها الوقت الحالي
+    // وحالتها pending فقط (لا نلغي الطلبات المقبولة أو المكتملة)
+    const expiredBookings = await Booking.find({
+      status: "pending",
+      endDate: { $exists: true, $ne: null },
+      endTime: { $exists: true, $ne: null },
+    })
+      .populate("client", "name")
+      .populate({
+        path: "craftsman",
+        populate: {
+          path: "user",
+          select: "name",
+        },
+      });
+
+    let cancelledCount = 0;
+
+    for (const booking of expiredBookings) {
+      // تحويل تاريخ ووقت النهاية إلى كائن Date
+      const endDateTime = new Date(booking.endDate);
+      const [hours, minutes] = booking.endTime.split(":");
+      endDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+      // التحقق من أن الوقت الحالي تجاوز وقت انتهاء الطلب
+      if (now > endDateTime) {
+        // تحديث حالة الطلب إلى ملغي بسبب انتهاء الوقت
+        booking.status = "cancelled_expired";
+        await booking.save();
+        cancelledCount++;
+
+        // إنشاء إشعار للعميل
+        if (booking.client) {
+          const clientNotification = new Notification({
+            user: booking.client._id,
+            type: "booking_cancelled",
+            title: "تم إلغاء الطلب تلقائياً",
+            message: "تم إلغاء طلبك تلقائياً بسبب انتهاء الوقت المحدد",
+            data: {
+              bookingId: booking._id,
+            },
+            icon: "clock",
+          });
+          await clientNotification.save();
+        }
+
+        // إنشاء إشعار للحرفي إذا كان الطلب مرئياً له
+        if (
+          booking.visibleToCraftsman &&
+          booking.craftsman &&
+          booking.craftsman.user
+        ) {
+          const craftsmanNotification = new Notification({
+            user: booking.craftsman.user._id,
+            type: "booking_cancelled",
+            title: "تم إلغاء طلب تلقائياً",
+            message: `تم إلغاء طلب ${booking.client.name} تلقائياً بسبب انتهاء الوقت المحدد`,
+            data: {
+              bookingId: booking._id,
+            },
+            icon: "clock",
+          });
+          await craftsmanNotification.save();
+        }
+
+        console.log(`تم إلغاء الطلب ${booking._id} تلقائياً بسبب انتهاء الوقت`);
+      }
+    }
+
+    console.log(`تم إلغاء ${cancelledCount} طلب تلقائياً بسبب انتهاء الوقت`);
+    return cancelledCount;
+  } catch (error) {
+    console.error("خطأ في إلغاء الطلبات المنتهية الصلاحية:", error);
+    return 0;
+  }
+};
+
 // Crear una nueva reserva
 exports.createBooking = asyncHandler(async (req, res) => {
   // Verificar errores de validación
@@ -68,7 +150,7 @@ exports.createBooking = asyncHandler(async (req, res) => {
   const {
     craftsmanId,
     date,
-    time,
+    time,اكمل
     endDate,
     endTime,
     location,
@@ -129,6 +211,9 @@ exports.createBooking = asyncHandler(async (req, res) => {
 
 // Obtener todas las reservas del usuario actual
 exports.getMyBookings = asyncHandler(async (req, res) => {
+  // تشغيل فحص الطلبات المنتهية الصلاحية قبل جلب الطلبات
+  await cancelExpiredBookings();
+
   let bookings;
 
   if (req.user.userType === "client") {
@@ -239,7 +324,6 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
     "rejected",
     "completed",
     "cancelled",
-    "cancelled_expired",
   ];
   if (!validStatuses.includes(status)) {
     return res.status(400).json({ message: "Estado inválido" });
@@ -285,21 +369,6 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
     if (booking.status !== "pending" && booking.status !== "accepted") {
       return res.status(400).json({
         message: "Solo se pueden cancelar reservas pendientes o aceptadas",
-      });
-    }
-  } else if (status === "cancelled_expired") {
-    // الإلغاء بسبب انتهاء الوقت يمكن أن يتم من النظام أو العميل
-    if (!isClient && req.user.userType !== "admin") {
-      return res
-        .status(403)
-        .json({ message: "غير مصرح لك بإلغاء الطلب بسبب انتهاء الوقت" });
-    }
-
-    // يمكن إلغاء الطلب بسبب انتهاء الوقت فقط إذا كان قيد الانتظار
-    if (booking.status !== "pending") {
-      return res.status(400).json({
-        message:
-          "يمكن إلغاء الطلبات بسبب انتهاء الوقت فقط إذا كانت قيد الانتظار",
       });
     }
   } else if (status === "completed") {
@@ -383,13 +452,6 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
       message = `La reserva ha sido cancelada por ${booking.client.name}`;
       icon = "x-square";
       recipientId = booking.craftsman.user._id;
-      break;
-    case "cancelled_expired":
-      notificationType = "booking_cancelled_expired";
-      title = "طلب ملغى بسبب انتهاء الوقت";
-      message = `تم إلغاء الطلب تلقائياً بسبب انتهاء الوقت المحدد`;
-      icon = "clock";
-      recipientId = booking.client._id;
       break;
   }
 
@@ -534,6 +596,17 @@ exports.processExpiredBookings = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: `تم تحديث ${count} طلب منتهي الصلاحية`,
+    count,
+  });
+});
+
+// إلغاء الطلبات المنتهية الصلاحية تلقائياً
+exports.cancelExpiredBookings = asyncHandler(async (req, res) => {
+  const count = await cancelExpiredBookings();
+
+  res.json({
+    success: true,
+    message: `تم إلغاء ${count} طلب تلقائياً بسبب انتهاء الوقت`,
     count,
   });
 });
