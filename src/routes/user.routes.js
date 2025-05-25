@@ -35,23 +35,32 @@ router.put(
 // Desactivar cuenta
 router.put('/deactivate', userController.deactivateAccount);
 
-// Subir imagen de perfil
+// Subir imagen de perfil (حفظ كـ Base64)
 router.post('/upload-profile-image', uploadSingleImage('profileImage'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No se ha subido ninguna imagen' });
   }
 
-  // Registrar información sobre el archivo subido
-  console.log("Archivo subido:", {
-    originalname: req.file.originalname,
-    filename: req.file.filename,
-    path: req.file.path,
-    size: req.file.size
-  });
+  try {
+    // قراءة الملف وتحويله إلى Base64
+    const fs = require('fs');
+    const fileBuffer = fs.readFileSync(req.file.path);
+    const base64String = `data:${req.file.mimetype};base64,${fileBuffer.toString('base64')}`;
 
-  const imageUrl = `/uploads/${req.file.filename}`;
-  console.log("URL de imagen generada:", imageUrl);
-  res.json({ imageUrl });
+    // حذف الملف المؤقت بعد التحويل
+    fs.unlinkSync(req.file.path);
+
+    console.log("تم تحويل صورة الملف الشخصي إلى Base64:", {
+      originalname: req.file.originalname,
+      size: req.file.size,
+      base64Length: base64String.length
+    });
+
+    res.json({ imageUrl: base64String });
+  } catch (error) {
+    console.error("خطأ في تحويل صورة الملف الشخصي:", error);
+    res.status(500).json({ message: 'خطأ في معالجة الصورة' });
+  }
 });
 
 // Rutas de administrador

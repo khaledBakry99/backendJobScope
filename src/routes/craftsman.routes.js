@@ -190,9 +190,34 @@ router.post(
         return res.status(400).json({ message: "No se han subido imágenes" });
       }
 
-      // Generar URLs para las imágenes cargadas
-      const imageUrls = req.files.map((file) => `/uploads/${file.filename}`);
-      console.log("URLs de imágenes generadas:", imageUrls);
+      // تحويل الصور إلى Base64 بدلاً من حفظها في مجلد
+      const fs = require('fs');
+      const path = require('path');
+
+      const imageBase64Array = [];
+
+      for (const file of req.files) {
+        try {
+          // قراءة الملف وتحويله إلى Base64
+          const fileBuffer = fs.readFileSync(file.path);
+          const base64String = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
+
+          imageBase64Array.push(base64String);
+
+          // حذف الملف المؤقت بعد التحويل
+          fs.unlinkSync(file.path);
+
+          console.log("تم تحويل صورة إلى Base64:", {
+            originalName: file.originalname,
+            size: file.size,
+            base64Length: base64String.length
+          });
+        } catch (fileError) {
+          console.error("خطأ في معالجة الملف:", file.originalname, fileError);
+        }
+      }
+
+      console.log("تم تحويل الصور إلى Base64:", imageBase64Array.length);
 
       // Buscar el perfil del artesano
       let craftsman = null;
@@ -230,14 +255,13 @@ router.post(
         currentGalleryItems: currentGallery
       });
 
-      // Combinar la galería actual con las nuevas imágenes
-      const updatedGallery = [...currentGallery, ...imageUrls];
+      // Combinar la galería actual مع الصور الجديدة المحولة إلى Base64
+      const updatedGallery = [...currentGallery, ...imageBase64Array];
 
       console.log("Galería después de la actualización:", {
         currentGallery: currentGallery.length,
-        newImages: imageUrls.length,
-        updatedGallery: updatedGallery.length,
-        updatedGalleryItems: updatedGallery
+        newImages: imageBase64Array.length,
+        updatedGallery: updatedGallery.length
       });
 
       // Guardar la galería actualizada
@@ -245,13 +269,12 @@ router.post(
       await craftsman.save();
 
       console.log("Galería guardada en la base de datos:", {
-        savedGalleryLength: craftsman.workGallery.length,
-        savedGalleryItems: craftsman.workGallery
+        savedGalleryLength: craftsman.workGallery.length
       });
 
-      // Devolver las URLs de las imágenes y la galería actualizada
+      // Devolver الصور المحولة والمعرض المحدث
       res.json({
-        imageUrls,
+        imageUrls: imageBase64Array,
         gallery: craftsman.workGallery,
         workGallery: craftsman.workGallery
       });

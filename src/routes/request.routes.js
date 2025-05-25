@@ -80,7 +80,7 @@ router.put(
 // حذف طلب
 router.delete('/:id', requestController.deleteRequest);
 
-// رفع صور للطلب
+// رفع صور للطلب (حفظ كـ Base64)
 router.post(
   '/upload-images',
   uploadMultipleImages('requestImages', 5),
@@ -89,8 +89,30 @@ router.post(
       return res.status(400).json({ message: 'لم يتم رفع أي صور' });
     }
 
-    const imageUrls = req.files.map((file) => `/uploads/${file.filename}`);
-    res.json({ imageUrls });
+    try {
+      const fs = require('fs');
+      const imageBase64Array = [];
+
+      for (const file of req.files) {
+        try {
+          // قراءة الملف وتحويله إلى Base64
+          const fileBuffer = fs.readFileSync(file.path);
+          const base64String = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
+
+          imageBase64Array.push(base64String);
+
+          // حذف الملف المؤقت بعد التحويل
+          fs.unlinkSync(file.path);
+        } catch (fileError) {
+          console.error("خطأ في معالجة ملف الطلب:", file.originalname, fileError);
+        }
+      }
+
+      res.json({ imageUrls: imageBase64Array });
+    } catch (error) {
+      console.error("خطأ في تحويل صور الطلب:", error);
+      res.status(500).json({ message: 'خطأ في معالجة الصور' });
+    }
   }
 );
 
