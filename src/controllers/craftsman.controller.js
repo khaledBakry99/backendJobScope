@@ -173,6 +173,15 @@ exports.getMyProfile = asyncHandler(async (req, res) => {
     );
   }
 
+  // إضافة بيانات مكان العمل الثاني إلى الاستجابة
+  console.log("بيانات مكان العمل الثاني في getMyProfile:", {
+    secondLocation: craftsmanObj.secondLocation,
+    secondWorkRadius: craftsmanObj.secondWorkRadius,
+    streetsInSecondWorkRange: craftsmanObj.streetsInSecondWorkRange ? craftsmanObj.streetsInSecondWorkRange.length : 0,
+    hospitalsInSecondWorkRange: craftsmanObj.hospitalsInSecondWorkRange ? craftsmanObj.hospitalsInSecondWorkRange.length : 0,
+    mosquesInSecondWorkRange: craftsmanObj.mosquesInSecondWorkRange ? craftsmanObj.mosquesInSecondWorkRange.length : 0,
+  });
+
   res.json(craftsmanObj);
 });
 
@@ -238,19 +247,40 @@ exports.searchCraftsmen = asyncHandler(async (req, res) => {
     const { lat, lng } = location;
     const maxDistance = parseFloat(radius);
 
-    // Filtrar artesanos por distancia
+    // Filtrar artesanos por distancia (incluyendo mكان العمل الثاني)
     craftsmen = craftsmen.filter((craftsman) => {
-      if (!craftsman.location) return false;
+      // التحقق من الموقع الأساسي
+      let primaryDistance = Infinity;
+      if (craftsman.location && craftsman.location.lat && craftsman.location.lng) {
+        primaryDistance = calculateDistance(
+          lat,
+          lng,
+          craftsman.location.lat,
+          craftsman.location.lng
+        );
+      }
 
-      // Calcular distancia entre dos puntos
-      const distance = calculateDistance(
-        lat,
-        lng,
-        craftsman.location.lat,
-        craftsman.location.lng
-      );
+      // التحقق من الموقع الثاني
+      let secondaryDistance = Infinity;
+      if (craftsman.secondLocation && craftsman.secondLocation.lat && craftsman.secondLocation.lng) {
+        secondaryDistance = calculateDistance(
+          lat,
+          lng,
+          craftsman.secondLocation.lat,
+          craftsman.secondLocation.lng
+        );
+      }
 
-      return distance <= maxDistance;
+      // إذا كان أي من الموقعين ضمن النطاق، اعتبر الحرفي مؤهلاً
+      const minDistance = Math.min(primaryDistance, secondaryDistance);
+
+      // إضافة معلومات المسافة والموقع الأقرب للحرفي
+      craftsman._doc.distance = minDistance;
+      craftsman._doc.nearestLocation = primaryDistance <= secondaryDistance ? 'primary' : 'secondary';
+      craftsman._doc.primaryDistance = primaryDistance;
+      craftsman._doc.secondaryDistance = secondaryDistance;
+
+      return minDistance <= maxDistance;
     });
 
     // إذا كان هناك موقع ونطاق ولكن لم يتم تحديد شارع أو حي، قم بالبحث عن الشوارع والأحياء في هذا النطاق
@@ -332,6 +362,21 @@ exports.searchCraftsmen = asyncHandler(async (req, res) => {
     }
   }
 
+  // ترتيب النتائج بناءً على المسافة والتقييم
+  if (location && radius) {
+    craftsmen.sort((a, b) => {
+      // ترتيب أولاً بناءً على المسافة
+      const distanceDiff = (a._doc.distance || 0) - (b._doc.distance || 0);
+      if (distanceDiff !== 0) return distanceDiff;
+
+      // إذا كانت المسافة متساوية، رتب بناءً على التقييم (الأعلى أولاً)
+      return (b.rating || 0) - (a.rating || 0);
+    });
+  } else {
+    // إذا لم يكن هناك بحث جغرافي، رتب بناءً على التقييم فقط
+    craftsmen.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  }
+
   // تحويل البيانات إلى كائنات عادية للتعديل
   const craftsmenWithImages = craftsmen.map((craftsman) => {
     const craftsmanObj = craftsman.toObject();
@@ -388,6 +433,13 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
     address,
     available,
     workingHours,
+    // مكان العمل الثاني
+    secondLocation,
+    secondWorkRadius,
+    streetsInSecondWorkRange,
+    hospitalsInSecondWorkRange,
+    mosquesInSecondWorkRange,
+    neighborhoodsInSecondWorkRange,
   } = req.body;
 
   // Buscar perfil de artesano
@@ -448,6 +500,7 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
 
   // تحديث نطاق العمل والموقع
   let shouldUpdateStreets = false;
+  let shouldUpdateSecondStreets = false;
 
   if (workRadius) {
     craftsman.workRadius = workRadius;
@@ -457,6 +510,40 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
   if (location) {
     craftsman.location = location;
     shouldUpdateStreets = true;
+  }
+
+  // تحديث مكان العمل الثاني
+  if (secondLocation) {
+    console.log("تحديث مكان العمل الثاني:", secondLocation);
+    craftsman.secondLocation = secondLocation;
+    shouldUpdateSecondStreets = true;
+  }
+
+  if (secondWorkRadius) {
+    console.log("تحديث نطاق العمل الثاني:", secondWorkRadius);
+    craftsman.secondWorkRadius = secondWorkRadius;
+    shouldUpdateSecondStreets = true;
+  }
+
+  // تحديث بيانات الأماكن لمكان العمل الثاني إذا تم تمريرها
+  if (streetsInSecondWorkRange) {
+    console.log("تحديث شوارع مكان العمل الثاني:", streetsInSecondWorkRange.length);
+    craftsman.streetsInSecondWorkRange = streetsInSecondWorkRange;
+  }
+
+  if (hospitalsInSecondWorkRange) {
+    console.log("تحديث مستشفيات مكان العمل الثاني:", hospitalsInSecondWorkRange.length);
+    craftsman.hospitalsInSecondWorkRange = hospitalsInSecondWorkRange;
+  }
+
+  if (mosquesInSecondWorkRange) {
+    console.log("تحديث مساجد مكان العمل الثاني:", mosquesInSecondWorkRange.length);
+    craftsman.mosquesInSecondWorkRange = mosquesInSecondWorkRange;
+  }
+
+  if (neighborhoodsInSecondWorkRange) {
+    console.log("تحديث أحياء مكان العمل الثاني:", neighborhoodsInSecondWorkRange.length);
+    craftsman.neighborhoodsInSecondWorkRange = neighborhoodsInSecondWorkRange;
   }
 
   if (address) {
@@ -563,7 +650,87 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
     }
   }
 
+  // إذا تم تغيير الموقع الثاني أو نطاق العمل الثاني، قم بتحديث الشوارع والأحياء للموقع الثاني
+  if (shouldUpdateSecondStreets && craftsman.secondLocation && craftsman.secondWorkRadius) {
+    try {
+      // الحصول على الشوارع والمستشفيات والمساجد ضمن نطاق العمل الثاني
+      const { getStreetsInRadius } = require("../utils/geo.utils");
+      const secondPlacesData = await getStreetsInRadius(
+        craftsman.secondLocation.lat,
+        craftsman.secondLocation.lng,
+        craftsman.secondWorkRadius
+      );
+
+      // تحديث الشوارع والمستشفيات والمساجد في ملف الحرفي للموقع الثاني
+      craftsman.streetsInSecondWorkRange = secondPlacesData.streets || [];
+      craftsman.hospitalsInSecondWorkRange = secondPlacesData.hospitals || [];
+      craftsman.mosquesInSecondWorkRange = secondPlacesData.mosques || [];
+
+      // الحصول على الأحياء ضمن نطاق العمل الثاني
+      const calculateDistance = (lat1, lng1, lat2, lng2) => {
+        const R = 6371; // نصف قطر الأرض بالكيلومتر
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLng = ((lng2 - lng1) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((lat1 * Math.PI) / 180) *
+            Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLng / 2) *
+            Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = R * c; // المسافة بالكيلومتر
+        return distance;
+      };
+
+      // بيانات الأحياء في دمشق وضواحيها مع إحداثياتها
+      const neighborhoods = [
+        { name: "المزة", lat: 33.5038, lng: 36.2478 },
+        { name: "المالكي", lat: 33.5125, lng: 36.2789 },
+        { name: "أبو رمانة", lat: 33.5167, lng: 36.2833 },
+        { name: "الروضة", lat: 33.5189, lng: 36.3033 },
+        { name: "كفرسوسة", lat: 33.4978, lng: 36.2689 },
+        { name: "المهاجرين", lat: 33.5256, lng: 36.2922 },
+        { name: "دمر", lat: 33.5367, lng: 36.2256 },
+        { name: "قدسيا", lat: 33.5578, lng: 36.2389 },
+        { name: "برزة", lat: 33.5456, lng: 36.3256 },
+        { name: "ركن الدين", lat: 33.5367, lng: 36.3056 },
+        { name: "الميدان", lat: 33.4889, lng: 36.3022 },
+        { name: "القابون", lat: 33.5367, lng: 36.3322 },
+        { name: "جوبر", lat: 33.5289, lng: 36.3389 },
+        { name: "الشعلان", lat: 33.5133, lng: 36.2922 },
+        { name: "الصالحية", lat: 33.5178, lng: 36.2978 },
+      ];
+
+      // تصفية الأحياء حسب المسافة للموقع الثاني
+      const secondNeighborhoodsInRadius = neighborhoods
+        .filter((neighborhood) => {
+          const distance = calculateDistance(
+            craftsman.secondLocation.lat,
+            craftsman.secondLocation.lng,
+            neighborhood.lat,
+            neighborhood.lng
+          );
+          return distance <= craftsman.secondWorkRadius;
+        })
+        .map((neighborhood) => neighborhood.name);
+
+      craftsman.neighborhoodsInSecondWorkRange = secondNeighborhoodsInRadius;
+    } catch (error) {
+      console.error("خطأ في تحديث الشوارع والأحياء للموقع الثاني:", error);
+      // لا نريد إيقاف عملية التحديث إذا فشل تحديث الشوارع
+    }
+  }
+
   await craftsman.save();
+
+  // طباعة بيانات مكان العمل الثاني بعد الحفظ
+  console.log("بيانات مكان العمل الثاني بعد الحفظ:", {
+    secondLocation: craftsman.secondLocation,
+    secondWorkRadius: craftsman.secondWorkRadius,
+    streetsInSecondWorkRange: craftsman.streetsInSecondWorkRange ? craftsman.streetsInSecondWorkRange.length : 0,
+    hospitalsInSecondWorkRange: craftsman.hospitalsInSecondWorkRange ? craftsman.hospitalsInSecondWorkRange.length : 0,
+    mosquesInSecondWorkRange: craftsman.mosquesInSecondWorkRange ? craftsman.mosquesInSecondWorkRange.length : 0,
+  });
 
   // تحويل البيانات إلى كائن عادي للتعديل
   const craftsmanObj = craftsman.toObject();
@@ -613,6 +780,15 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
     bioInCraftsmanObj: craftsmanObj.bio,
     bioType: typeof craftsmanObj.bio,
     bioLength: craftsmanObj.bio ? craftsmanObj.bio.length : 0,
+  });
+
+  // طباعة بيانات مكان العمل الثاني في الاستجابة
+  console.log("بيانات مكان العمل الثاني في الاستجابة:", {
+    secondLocation: craftsmanObj.secondLocation,
+    secondWorkRadius: craftsmanObj.secondWorkRadius,
+    streetsInSecondWorkRange: craftsmanObj.streetsInSecondWorkRange ? craftsmanObj.streetsInSecondWorkRange.length : 0,
+    hospitalsInSecondWorkRange: craftsmanObj.hospitalsInSecondWorkRange ? craftsmanObj.hospitalsInSecondWorkRange.length : 0,
+    mosquesInSecondWorkRange: craftsmanObj.mosquesInSecondWorkRange ? craftsmanObj.mosquesInSecondWorkRange.length : 0,
   });
 
   res.json(craftsmanObj);
