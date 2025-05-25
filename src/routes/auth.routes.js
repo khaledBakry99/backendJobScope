@@ -61,7 +61,10 @@ router.post("/send-otp-phone", authController.sendOtpToPhone);
 // التحقق من صحة رمز التحقق
 router.post("/verify-otp", authController.verifyOtp);
 
-// تسجيل مستخدم تم إنشاؤه باستخدام Firebase
+// تسجيل مستخدم تم إنشاؤه باستخدام Firebase (deprecated)
 router.post("/register-firebase", authController.registerFirebaseUser);
+
+// تسجيل مستخدم تم إنشاؤه باستخدام Supabase
+router.post("/register-supabase", authController.registerSupabaseUser);
 
 module.exports = router;

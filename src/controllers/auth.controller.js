@@ -6,6 +6,7 @@ const { asyncHandler } = require("../middleware/error.middleware");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const OTP = require("../models/otp.model");
+const { supabase, verifySupabaseToken } = require("../config/supabase.config");
 
 // توليد رمز JWT
 const generateToken = (id, userType) => {
@@ -760,4 +761,181 @@ exports.adminLogin = asyncHandler(async (req, res) => {
     isAuthenticated: true,
     expiresIn,
   });
+});
+
+// تسجيل مستخدم تم إنشاؤه باستخدام Supabase
+exports.registerSupabaseUser = asyncHandler(async (req, res) => {
+  console.log("🔄 تسجيل مستخدم Supabase - البيانات المستلمة:", req.body);
+
+  try {
+    const {
+      uid,
+      id,
+      email,
+      name,
+      displayName,
+      phone,
+      phoneNumber,
+      userType,
+      address,
+      profilePicture,
+      photoURL,
+      emailVerified,
+      user_metadata,
+    } = req.body;
+
+    // استخدام المعرف المناسب (uid من Firebase أو id من Supabase)
+    const userId = uid || id;
+    const userName = name || displayName || user_metadata?.name;
+    const userPhone = phone || phoneNumber || user_metadata?.phone;
+    const userPhoto =
+      profilePicture || photoURL || user_metadata?.profile_picture;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "معرف المستخدم مطلوب",
+      });
+    }
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "البريد الإلكتروني مطلوب",
+      });
+    }
+
+    // التحقق مما إذا كان المستخدم موجودًا بالفعل
+    let existingUser = await User.findOne({
+      $or: [
+        { _id: userId },
+        { email },
+        { supabaseUid: userId },
+        { firebaseUid: userId },
+      ],
+    });
+
+    if (existingUser) {
+      console.log("✅ المستخدم موجود بالفعل، تحديث البيانات");
+
+      // تحديث بيانات المستخدم الموجود
+      existingUser.name = userName || existingUser.name;
+      existingUser.email = email;
+      existingUser.phone = userPhone || existingUser.phone;
+      existingUser.profilePicture = userPhoto || existingUser.profilePicture;
+      existingUser.userType = userType || existingUser.userType;
+      existingUser.address = address || existingUser.address;
+      existingUser.isActive = true;
+      // تحديث معرف Supabase ومقدم المصادقة
+      existingUser.supabaseUid = userId;
+      existingUser.authProvider = "supabase";
+
+      await existingUser.save();
+
+      // توليد رمز مميز جديد
+      const token = generateToken(existingUser._id, existingUser.userType);
+
+      // جلب معلومات الحرفي إذا كان المستخدم حرفيًا
+      let craftsmanInfo = null;
+      if (existingUser.userType === "craftsman") {
+        craftsmanInfo = await Craftsman.findOne({ user: existingUser._id });
+      }
+
+      // إعداد بيانات المستخدم للاستجابة
+      let userData = {
+        id: existingUser._id,
+        name: existingUser.name,
+        email: existingUser.email,
+        phone: existingUser.phone,
+        userType: existingUser.userType,
+        profilePicture: existingUser.profilePicture,
+        address: existingUser.address,
+      };
+
+      if (craftsmanInfo) {
+        userData = {
+          ...userData,
+          professions: craftsmanInfo.professions,
+          specializations: craftsmanInfo.specializations,
+          workRadius: craftsmanInfo.workRadius,
+          location: craftsmanInfo.location,
+          bio: craftsmanInfo.bio,
+          available: craftsmanInfo.available,
+        };
+      }
+
+      return res.status(200).json({
+        success: true,
+        token,
+        user: userData,
+        message: "تم تحديث بيانات المستخدم بنجاح",
+      });
+    }
+
+    // إنشاء مستخدم جديد
+    console.log("🆕 إنشاء مستخدم جديد");
+
+    const newUser = new User({
+      _id: userId,
+      name: userName,
+      email,
+      phone: userPhone,
+      userType: userType || "client",
+      address: address || "",
+      profilePicture: userPhoto || "",
+      isActive: true,
+      // إضافة معرف Supabase ومقدم المصادقة
+      supabaseUid: userId,
+      authProvider: "supabase",
+      // لا نحتاج لكلمة مرور لأن المصادقة تتم عبر Supabase
+      password: "supabase-auth", // كلمة مرور وهمية
+    });
+
+    await newUser.save();
+
+    // إذا كان المستخدم حرفيًا، إنشاء ملف تعريف للحرفي
+    if (newUser.userType === "craftsman") {
+      const craftsman = new Craftsman({
+        user: newUser._id,
+        professions: [],
+        specializations: [],
+        workRadius: 5,
+        location: { lat: 33.5138, lng: 36.2765 }, // Damascus default
+        bio: "",
+        available: true,
+      });
+
+      await craftsman.save();
+    }
+
+    // توليد رمز مميز
+    const token = generateToken(newUser._id, newUser.userType);
+
+    // إعداد بيانات المستخدم للاستجابة
+    const userData = {
+      id: newUser._id,
+      name: newUser.name,
+      email: newUser.email,
+      phone: newUser.phone,
+      userType: newUser.userType,
+      profilePicture: newUser.profilePicture,
+      address: newUser.address,
+    };
+
+    console.log("✅ تم إنشاء المستخدم بنجاح");
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: userData,
+      message: "تم تسجيل المستخدم بنجاح",
+    });
+  } catch (error) {
+    console.error("❌ خطأ في تسجيل مستخدم Supabase:", error);
+    res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء تسجيل المستخدم",
+      error: error.message,
+    });
+  }
 });

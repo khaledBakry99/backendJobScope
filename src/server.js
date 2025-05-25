@@ -11,6 +11,9 @@ dotenv.config();
 // استيراد الاتصال بقاعدة البيانات
 const connectDB = require("./config/db.config");
 
+// استيراد تكوين Supabase
+const { testSupabaseConnection } = require("./config/supabase.config");
+
 // استيراد وسائط الخطأ
 const { notFound, errorHandler } = require("./middleware/error.middleware");
 
@@ -189,11 +192,15 @@ const PORT = process.env.PORT || 5000;
 const { startCronJobs } = require("./cron/bookingCron");
 
 // بدء الخادم
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(
     `الخادم يعمل في البيئة ${process.env.NODE_ENV} على المنفذ ${PORT}`
   );
   console.log(`CORS مفعل للسماح بالوصول من أي مصدر`);
+
+  // اختبار اتصال Supabase
+  console.log("🔄 اختبار اتصال Supabase...");
+  await testSupabaseConnection();
 
   // بدء تشغيل مجدول المهام
   startCronJobs();
