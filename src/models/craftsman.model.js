@@ -39,15 +39,6 @@ const craftsmanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    // مكان العمل الثاني
-    secondLocation: {
-      lat: Number,
-      lng: Number,
-    },
-    secondWorkRadius: {
-      type: Number,
-      default: 3, // بالكيلومتر
-    },
     // إضافة قائمة الشوارع ضمن نطاق العمل
     streetsInWorkRange: [
       {
@@ -71,34 +62,6 @@ const craftsmanSchema = new mongoose.Schema(
     ],
     // إضافة الأحياء ضمن نطاق العمل
     neighborhoodsInWorkRange: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    // إضافة قائمة الشوارع ضمن نطاق العمل الثاني
-    streetsInSecondWorkRange: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    // إضافة المستشفيات ضمن نطاق العمل الثاني
-    hospitalsInSecondWorkRange: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    // إضافة المساجد ضمن نطاق العمل الثاني
-    mosquesInSecondWorkRange: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    // إضافة الأحياء ضمن نطاق العمل الثاني
-    neighborhoodsInSecondWorkRange: [
       {
         type: String,
         trim: true,
