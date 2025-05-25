@@ -59,7 +59,7 @@ const userSchema = new mongoose.Schema(
     },
     isActive: {
       type: Boolean,
-      default: true,
+      default: false, // المستخدمون الجدد غير مفعلين حتى يتم التحقق من البريد الإلكتروني
     },
     firebaseUid: {
       type: String,

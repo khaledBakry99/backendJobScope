@@ -14,6 +14,11 @@ const connectDB = require("./config/db.config");
 // استيراد تكوين Supabase
 const { testSupabaseConnection } = require("./config/supabase.config");
 
+// استيراد مزامنة Supabase
+const {
+  syncUsersToSupabase,
+} = require("./middleware/supabase-sync.middleware");
+
 // استيراد وسائط الخطأ
 const { notFound, errorHandler } = require("./middleware/error.middleware");
 
@@ -201,6 +206,12 @@ app.listen(PORT, async () => {
   // اختبار اتصال Supabase
   console.log("🔄 اختبار اتصال Supabase...");
   await testSupabaseConnection();
+
+  // مزامنة المستخدمين مع Supabase
+  console.log("🔄 بدء مزامنة المستخدمين مع Supabase...");
+  setTimeout(async () => {
+    await syncUsersToSupabase();
+  }, 5000); // تأخير 5 ثوان للتأكد من اكتمال الاتصال
 
   // بدء تشغيل مجدول المهام
   startCronJobs();
