@@ -24,38 +24,11 @@ exports.protect = async (req, res, next) => {
   }
 
   try {
-    let decoded;
-    let user;
+    // التحقق من الرمز المميز
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // التحقق من نوع الرمز المميز
-    if (token.startsWith('eyJ')) {
-      // محاولة فك تشفير رمز Supabase JWT
-      try {
-        decoded = jwt.decode(token); // فك تشفير بدون تحقق للرموز من Supabase
-
-        if (decoded && decoded.sub) {
-          // البحث عن المستخدم باستخدام Supabase UID
-          user = await User.findOne({
-            $or: [
-              { supabaseUid: decoded.sub },
-              { _id: decoded.sub }
-            ]
-          }).select("-password");
-        }
-      } catch (supabaseError) {
-        console.log("فشل في فك تشفير رمز Supabase، جاري المحاولة كرمز JWT عادي");
-      }
-    }
-
-    // إذا لم ينجح Supabase، جرب JWT العادي
-    if (!user) {
-      try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET);
-        user = await User.findById(decoded.id).select("-password");
-      } catch (jwtError) {
-        console.log("فشل في التحقق من JWT العادي");
-      }
-    }
+    // البحث عن المستخدم
+    const user = await User.findById(decoded.id).select("-password");
 
     if (!user) {
       return res.status(401).json({
@@ -74,7 +47,6 @@ exports.protect = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error("خطأ في التحقق من الرمز المميز:", error);
     return res.status(401).json({
       message: "الرمز المميز غير صالح أو منتهي الصلاحية",
     });

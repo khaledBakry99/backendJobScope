@@ -31,16 +31,6 @@ router.post(
   authController.login
 );
 
-// تسجيل الدخول المختلط (Supabase + MongoDB)
-router.post(
-  "/hybrid-login",
-  [
-    check("email", "يرجى إدخال بريد إلكتروني صالح").isEmail(),
-    check("password", "كلمة المرور مطلوبة").exists(),
-  ],
-  authController.hybridLogin
-);
-
 // تسجيل الدخول كمدير
 router.post(
   "/admin/login",
@@ -68,35 +58,10 @@ router.post("/send-otp-email", authController.sendOtpToEmail);
 // إرسال رمز التحقق إلى رقم الهاتف
 router.post("/send-otp-phone", authController.sendOtpToPhone);
 
-// التحقق من صحة رمز التحقق وتفعيل الحساب
+// التحقق من صحة رمز التحقق
 router.post("/verify-otp", authController.verifyOtp);
 
-// إعادة إرسال رمز التحقق
-router.post("/resend-otp", authController.sendOtpToEmail);
-
-// تسجيل مستخدم تم إنشاؤه باستخدام Firebase (deprecated)
+// تسجيل مستخدم تم إنشاؤه باستخدام Firebase
 router.post("/register-firebase", authController.registerFirebaseUser);
-
-// تسجيل مستخدم تم إنشاؤه باستخدام Supabase
-router.post("/register-supabase", authController.registerSupabaseUser);
-
-// مزامنة المستخدمين مع Supabase (للمطورين فقط)
-router.post("/sync-users", async (req, res) => {
-  try {
-    const { syncUsersToSupabase } = require("../middleware/supabase-sync.middleware");
-    const result = await syncUsersToSupabase();
-
-    res.json({
-      success: result,
-      message: result ? "تم مزامنة المستخدمين بنجاح" : "فشل في مزامنة المستخدمين"
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "خطأ في مزامنة المستخدمين",
-      error: error.message
-    });
-  }
-});
 
 module.exports = router;

@@ -27,13 +27,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       minlength: 6,
-      // يمكن أن تكون كلمة المرور غير مطلوبة في حالة المصادقة عبر Firebase أو Supabase
+      // يمكن أن تكون كلمة المرور غير مطلوبة في حالة المصادقة عبر Firebase
       validate: {
         validator: function() {
-          return this.firebaseUid || this.supabaseUid || this.googleId || this.password;
+          return this.firebaseUid || this.googleId || this.password;
         },
         message:
-          "يجب توفير كلمة مرور أو استخدام المصادقة عبر Firebase أو Supabase أو Google",
+          "يجب توفير كلمة مرور أو استخدام المصادقة عبر Firebase أو Google",
       },
     },
     phone: {
@@ -59,14 +59,9 @@ const userSchema = new mongoose.Schema(
     },
     isActive: {
       type: Boolean,
-      default: false, // المستخدمون الجدد غير مفعلين حتى يتم التحقق من البريد الإلكتروني
+      default: true,
     },
     firebaseUid: {
-      type: String,
-      sparse: true,
-      index: true,
-    },
-    supabaseUid: {
       type: String,
       sparse: true,
       index: true,
@@ -75,11 +70,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       sparse: true,
       index: true,
-    },
-    authProvider: {
-      type: String,
-      enum: ["local", "firebase", "supabase", "google"],
-      default: "local",
     },
   },
   {

@@ -6,8 +6,6 @@ const { asyncHandler } = require("../middleware/error.middleware");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const OTP = require("../models/otp.model");
-const { supabase, verifySupabaseToken } = require("../config/supabase.config");
-const { syncSingleUserToSupabase, findUserBySupabaseId } = require("../middleware/supabase-sync.middleware");
 
 // توليد رمز JWT
 const generateToken = (id, userType) => {
@@ -90,7 +88,7 @@ exports.register = asyncHandler(async (req, res) => {
     }
   }
 
-  // إنشاء مستخدم جديد (غير مفعل حتى يتم التحقق من البريد الإلكتروني)
+  // إنشاء مستخدم جديد
   const user = new User({
     name,
     email,
@@ -99,7 +97,6 @@ exports.register = asyncHandler(async (req, res) => {
     userType,
     address,
     profilePicture: profilePicturePath,
-    isActive: false, // المستخدم غير مفعل حتى يتم التحقق من البريد الإلكتروني
   });
 
   await user.save();
@@ -162,36 +159,53 @@ exports.register = asyncHandler(async (req, res) => {
     await craftsman.save();
   }
 
-  // إرسال رمز التحقق إلى البريد الإلكتروني تلقائياً
-  const otp = generateOTP();
+  // توليد الرمز المميز
+  const token = generateToken(user._id, user.userType);
 
-  // حفظ رمز التحقق في قاعدة البيانات
-  await OTP.findOneAndDelete({ identifier: email }); // حذف أي رمز سابق
-  await OTP.create({ identifier: email, otp });
+  // إضافة خيار تذكرني
+  const rememberMe = req.body.rememberMe || false;
+  const expiresIn = rememberMe ? "30d" : "24h";
 
-  // إرسال رمز التحقق عبر البريد الإلكتروني
-  const sent = await sendOTPByEmail(email, otp);
-
-  if (!sent) {
-    // إذا فشل إرسال البريد الإلكتروني، احذف المستخدم المنشأ
-    await User.findByIdAndDelete(user._id);
-    if (user.userType === "craftsman") {
-      await Craftsman.findOneAndDelete({ user: user._id });
-    }
-
-    return res.status(500).json({
-      success: false,
-      message: "فشل في إرسال رمز التحقق، يرجى المحاولة مرة أخرى",
-    });
+  // إذا كان المستخدم حرفيًا، قم بجلب معلومات الحرفي
+  let craftsmanInfo = null;
+  if (user.userType === "craftsman") {
+    craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
+      "professions specializations workRadius location bio workGallery streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange available"
+    );
   }
 
-  // إرجاع رسالة نجاح بدون token (المستخدم يحتاج للتحقق من البريد الإلكتروني أولاً)
-  res.status(201).json({
-    success: true,
-    message: "تم إنشاء الحساب بنجاح. يرجى التحقق من بريدك الإلكتروني لتفعيل الحساب",
-    userId: user._id,
+  // إذا كان المستخدم حرفيًا، قم بدمج معلومات الحرفي مع معلومات المستخدم
+  let userData = {
+    id: user._id,
+    name: user.name,
     email: user.email,
-    requiresVerification: true,
+    phone: user.phone,
+    userType: user.userType,
+    profilePicture: user.profilePicture,
+  };
+
+  if (craftsmanInfo) {
+    userData = {
+      ...userData,
+      professions: craftsmanInfo.professions,
+      specializations: craftsmanInfo.specializations,
+      workRadius: craftsmanInfo.workRadius,
+      location: craftsmanInfo.location,
+      bio: craftsmanInfo.bio,
+      gallery: craftsmanInfo.workGallery || [], // إضافة معرض الصور
+      workGallery: craftsmanInfo.workGallery || [], // إضافة معرض الأعمال للتوافق مع الباك إند
+      available: craftsmanInfo.available, // إضافة حالة التوفر
+      streetsInWorkRange: craftsmanInfo.streetsInWorkRange,
+      hospitalsInWorkRange: craftsmanInfo.hospitalsInWorkRange,
+      mosquesInWorkRange: craftsmanInfo.mosquesInWorkRange,
+      neighborhoodsInWorkRange: craftsmanInfo.neighborhoodsInWorkRange,
+    };
+  }
+
+  res.status(201).json({
+    token,
+    user: userData,
+    expiresIn,
   });
 });
 
@@ -222,11 +236,7 @@ exports.login = asyncHandler(async (req, res) => {
 
   // التحقق مما إذا كان المستخدم نشطًا
   if (!user.isActive) {
-    return res.status(401).json({
-      message: "حسابك غير مفعل. يرجى التحقق من بريدك الإلكتروني لتفعيل الحساب",
-      requiresVerification: true,
-      email: user.email
-    });
+    return res.status(401).json({ message: "تم تعطيل حسابك" });
   }
 
   // تحديد مدة صلاحية الرمز المميز بناءً على خيار "تذكرني"
@@ -506,7 +516,7 @@ exports.sendOtpToPhone = asyncHandler(async (req, res) => {
   }
 });
 
-// التحقق من صحة رمز التحقق وتفعيل الحساب
+// التحقق من صحة رمز التحقق
 exports.verifyOtp = asyncHandler(async (req, res) => {
   const { email, phone, otp } = req.body;
 
@@ -532,70 +542,12 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
     });
   }
 
-  // البحث عن المستخدم وتفعيل حسابه
-  const user = await User.findOne({
-    $or: [{ email: identifier }, { phone: identifier }],
-  });
-
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: "المستخدم غير موجود",
-    });
-  }
-
-  // تفعيل الحساب
-  user.isActive = true;
-  await user.save();
-
   // حذف رمز التحقق بعد التحقق منه
   await OTP.deleteOne({ _id: otpRecord._id });
 
-  // توليد الرمز المميز للمستخدم المفعل
-  const token = generateToken(user._id, user.userType);
-
-  // إذا كان المستخدم حرفيًا، قم بجلب معلومات الحرفي
-  let craftsmanInfo = null;
-  if (user.userType === "craftsman") {
-    craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
-      "professions specializations workRadius location bio workGallery streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange available"
-    );
-  }
-
-  // إعداد بيانات المستخدم للإرجاع
-  let userData = {
-    id: user._id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    userType: user.userType,
-    profilePicture: user.profilePicture,
-  };
-
-  if (craftsmanInfo) {
-    userData = {
-      ...userData,
-      professions: craftsmanInfo.professions,
-      specializations: craftsmanInfo.specializations,
-      workRadius: craftsmanInfo.workRadius,
-      location: craftsmanInfo.location,
-      bio: craftsmanInfo.bio,
-      gallery: craftsmanInfo.workGallery || [],
-      workGallery: craftsmanInfo.workGallery || [],
-      available: craftsmanInfo.available,
-      streetsInWorkRange: craftsmanInfo.streetsInWorkRange,
-      hospitalsInWorkRange: craftsmanInfo.hospitalsInWorkRange,
-      mosquesInWorkRange: craftsmanInfo.mosquesInWorkRange,
-      neighborhoodsInWorkRange: craftsmanInfo.neighborhoodsInWorkRange,
-    };
-  }
-
   res.json({
     success: true,
-    message: "تم التحقق من الحساب وتفعيله بنجاح",
-    token,
-    user: userData,
-    expiresIn: "30d",
+    message: "تم التحقق من الرمز بنجاح",
   });
 });
 
@@ -808,311 +760,4 @@ exports.adminLogin = asyncHandler(async (req, res) => {
     isAuthenticated: true,
     expiresIn,
   });
-});
-
-// تسجيل الدخول المختلط (Supabase + MongoDB)
-exports.hybridLogin = asyncHandler(async (req, res) => {
-  const { email, password, rememberMe } = req.body;
-
-  try {
-    // محاولة تسجيل الدخول عبر Supabase أولاً
-    const { data: supabaseAuth, error: supabaseError } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (supabaseAuth && supabaseAuth.user) {
-      // نجح تسجيل الدخول عبر Supabase
-      console.log('✅ نجح تسجيل الدخول عبر Supabase');
-
-      // البحث عن المستخدم في MongoDB
-      let mongoUser = await findUserBySupabaseId(supabaseAuth.user.id);
-
-      if (!mongoUser) {
-        // البحث بالبريد الإلكتروني
-        mongoUser = await User.findOne({ email });
-
-        if (mongoUser) {
-          // ربط المستخدم مع Supabase
-          mongoUser.supabaseUid = supabaseAuth.user.id;
-          mongoUser.authProvider = 'supabase';
-          await mongoUser.save();
-        }
-      }
-
-      if (mongoUser) {
-        // إرجاع بيانات المستخدم من MongoDB
-        const token = generateToken(mongoUser._id, mongoUser.userType);
-
-        // جلب بيانات الحرفي إذا كان المستخدم حرفياً
-        let craftsmanInfo = null;
-        if (mongoUser.userType === "craftsman") {
-          craftsmanInfo = await Craftsman.findOne({ user: mongoUser._id });
-        }
-
-        let userData = {
-          id: mongoUser._id,
-          name: mongoUser.name,
-          email: mongoUser.email,
-          phone: mongoUser.phone,
-          userType: mongoUser.userType,
-          profilePicture: mongoUser.profilePicture,
-        };
-
-        if (craftsmanInfo) {
-          userData = { ...userData, ...craftsmanInfo.toObject() };
-        }
-
-        return res.json({
-          success: true,
-          token,
-          user: userData,
-          expiresIn: rememberMe ? "30d" : "24h",
-          authMethod: "supabase"
-        });
-      }
-    }
-
-    // إذا فشل Supabase، جرب MongoDB التقليدي
-    console.log('❌ فشل Supabase، جاري المحاولة مع MongoDB...');
-
-    const user = await User.findOne({
-      $or: [{ email }, { phone: email }],
-    });
-
-    if (!user) {
-      return res.status(401).json({ message: "بيانات الاعتماد غير صالحة" });
-    }
-
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "بيانات الاعتماد غير صالحة" });
-    }
-
-    if (!user.isActive) {
-      return res.status(401).json({
-        message: "حسابك غير مفعل. يرجى التحقق من بريدك الإلكتروني لتفعيل الحساب",
-        requiresVerification: true,
-        email: user.email
-      });
-    }
-
-    // مزامنة المستخدم مع Supabase في الخلفية
-    syncSingleUserToSupabase(user).catch(err =>
-      console.error('خطأ في مزامنة المستخدم مع Supabase:', err)
-    );
-
-    const token = generateToken(user._id, user.userType);
-
-    // جلب بيانات الحرفي
-    let craftsmanInfo = null;
-    if (user.userType === "craftsman") {
-      craftsmanInfo = await Craftsman.findOne({ user: user._id });
-    }
-
-    let userData = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      userType: user.userType,
-      profilePicture: user.profilePicture,
-    };
-
-    if (craftsmanInfo) {
-      userData = { ...userData, ...craftsmanInfo.toObject() };
-    }
-
-    res.json({
-      success: true,
-      token,
-      user: userData,
-      expiresIn: rememberMe ? "30d" : "24h",
-      authMethod: "mongodb"
-    });
-
-  } catch (error) {
-    console.error('خطأ في تسجيل الدخول المختلط:', error);
-    res.status(500).json({
-      success: false,
-      message: "حدث خطأ أثناء تسجيل الدخول"
-    });
-  }
-});
-
-// تسجيل مستخدم تم إنشاؤه باستخدام Supabase
-exports.registerSupabaseUser = asyncHandler(async (req, res) => {
-  console.log("🔄 تسجيل مستخدم Supabase - البيانات المستلمة:", req.body);
-
-  try {
-    const {
-      uid,
-      id,
-      email,
-      name,
-      displayName,
-      phone,
-      phoneNumber,
-      userType,
-      address,
-      profilePicture,
-      photoURL,
-      emailVerified,
-      user_metadata,
-    } = req.body;
-
-    // استخدام المعرف المناسب (uid من Firebase أو id من Supabase)
-    const userId = uid || id;
-    const userName = name || displayName || user_metadata?.name;
-    const userPhone = phone || phoneNumber || user_metadata?.phone;
-    const userPhoto =
-      profilePicture || photoURL || user_metadata?.profile_picture;
-
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: "معرف المستخدم مطلوب",
-      });
-    }
-
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: "البريد الإلكتروني مطلوب",
-      });
-    }
-
-    // التحقق مما إذا كان المستخدم موجودًا بالفعل
-    let existingUser = await User.findOne({
-      $or: [
-        { _id: userId },
-        { email },
-        { supabaseUid: userId },
-        { firebaseUid: userId },
-      ],
-    });
-
-    if (existingUser) {
-      console.log("✅ المستخدم موجود بالفعل، تحديث البيانات");
-
-      // تحديث بيانات المستخدم الموجود
-      existingUser.name = userName || existingUser.name;
-      existingUser.email = email;
-      existingUser.phone = userPhone || existingUser.phone;
-      existingUser.profilePicture = userPhoto || existingUser.profilePicture;
-      existingUser.userType = userType || existingUser.userType;
-      existingUser.address = address || existingUser.address;
-      existingUser.isActive = true;
-      // تحديث معرف Supabase ومقدم المصادقة
-      existingUser.supabaseUid = userId;
-      existingUser.authProvider = "supabase";
-
-      await existingUser.save();
-
-      // توليد رمز مميز جديد
-      const token = generateToken(existingUser._id, existingUser.userType);
-
-      // جلب معلومات الحرفي إذا كان المستخدم حرفيًا
-      let craftsmanInfo = null;
-      if (existingUser.userType === "craftsman") {
-        craftsmanInfo = await Craftsman.findOne({ user: existingUser._id });
-      }
-
-      // إعداد بيانات المستخدم للاستجابة
-      let userData = {
-        id: existingUser._id,
-        name: existingUser.name,
-        email: existingUser.email,
-        phone: existingUser.phone,
-        userType: existingUser.userType,
-        profilePicture: existingUser.profilePicture,
-        address: existingUser.address,
-      };
-
-      if (craftsmanInfo) {
-        userData = {
-          ...userData,
-          professions: craftsmanInfo.professions,
-          specializations: craftsmanInfo.specializations,
-          workRadius: craftsmanInfo.workRadius,
-          location: craftsmanInfo.location,
-          bio: craftsmanInfo.bio,
-          available: craftsmanInfo.available,
-        };
-      }
-
-      return res.status(200).json({
-        success: true,
-        token,
-        user: userData,
-        message: "تم تحديث بيانات المستخدم بنجاح",
-      });
-    }
-
-    // إنشاء مستخدم جديد
-    console.log("🆕 إنشاء مستخدم جديد");
-
-    const newUser = new User({
-      _id: userId,
-      name: userName,
-      email,
-      phone: userPhone,
-      userType: userType || "client",
-      address: address || "",
-      profilePicture: userPhoto || "",
-      isActive: true,
-      // إضافة معرف Supabase ومقدم المصادقة
-      supabaseUid: userId,
-      authProvider: "supabase",
-      // لا نحتاج لكلمة مرور لأن المصادقة تتم عبر Supabase
-      password: "supabase-auth", // كلمة مرور وهمية
-    });
-
-    await newUser.save();
-
-    // إذا كان المستخدم حرفيًا، إنشاء ملف تعريف للحرفي
-    if (newUser.userType === "craftsman") {
-      const craftsman = new Craftsman({
-        user: newUser._id,
-        professions: [],
-        specializations: [],
-        workRadius: 5,
-        location: { lat: 33.5138, lng: 36.2765 }, // Damascus default
-        bio: "",
-        available: true,
-      });
-
-      await craftsman.save();
-    }
-
-    // توليد رمز مميز
-    const token = generateToken(newUser._id, newUser.userType);
-
-    // إعداد بيانات المستخدم للاستجابة
-    const userData = {
-      id: newUser._id,
-      name: newUser.name,
-      email: newUser.email,
-      phone: newUser.phone,
-      userType: newUser.userType,
-      profilePicture: newUser.profilePicture,
-      address: newUser.address,
-    };
-
-    console.log("✅ تم إنشاء المستخدم بنجاح");
-
-    res.status(201).json({
-      success: true,
-      token,
-      user: userData,
-      message: "تم تسجيل المستخدم بنجاح",
-    });
-  } catch (error) {
-    console.error("❌ خطأ في تسجيل مستخدم Supabase:", error);
-    res.status(500).json({
-      success: false,
-      message: "حدث خطأ أثناء تسجيل المستخدم",
-      error: error.message,
-    });
-  }
 });
