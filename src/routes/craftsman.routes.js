@@ -185,6 +185,55 @@ router.put(
   craftsmanController.updateStreetsInWorkRange
 );
 
+// حذف صورة واحدة من المعرض
+router.delete("/me/gallery/:imageIndex", authorize("craftsman"), async (req, res) => {
+  try {
+    const imageIndex = parseInt(req.params.imageIndex);
+    console.log("طلب حذف صورة:", {
+      userId: req.user.id || req.user._id,
+      imageIndex: imageIndex,
+    });
+
+    const craftsman = await Craftsman.findOne({
+      user: req.user.id || req.user._id,
+    });
+
+    if (!craftsman) {
+      return res.status(404).json({ message: "Artesano no encontrado" });
+    }
+
+    // التحقق من صحة الفهرس
+    if (imageIndex < 0 || imageIndex >= craftsman.workGallery.length) {
+      return res.status(400).json({
+        message: "فهرس الصورة غير صالح",
+        currentGalleryLength: craftsman.workGallery.length
+      });
+    }
+
+    // حذف الصورة من المعرض
+    const removedImage = craftsman.workGallery.splice(imageIndex, 1)[0];
+
+    await craftsman.save();
+
+    console.log("تم حذف الصورة بنجاح:", {
+      craftsmanId: craftsman._id,
+      removedImageIndex: imageIndex,
+      removedImagePreview: removedImage ? removedImage.substring(0, 50) + '...' : 'null',
+      remainingImages: craftsman.workGallery.length,
+    });
+
+    res.json({
+      message: "تم حذف الصورة بنجاح",
+      removedImageIndex: imageIndex,
+      workGallery: craftsman.workGallery,
+      gallery: craftsman.workGallery, // للتوافق مع الواجهة
+    });
+  } catch (error) {
+    console.error("خطأ في حذف الصورة:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
+  }
+});
+
 // Subir imágenes para la galería de trabajos (مباشرة إلى Base64)
 router.post(
   "/me/upload-gallery",
