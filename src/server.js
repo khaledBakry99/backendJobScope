@@ -112,7 +112,7 @@ app.use("/api/map", require("./routes/map.routes"));
 app.use("/api/requests", require("./routes/request.routes"));
 app.use("/api/working-hours", require("./routes/workingHours.routes"));
 app.use("/api/site-settings", require("./routes/siteSettings.routes"));
-app.use("/api/Image", require("./routes/image.routes")); // Image API البسيط والسريع
+// app.use("/api/Image", require("./routes/image.routes")); // Image API البسيط والسريع - معلق مؤقتاً
 
 // مسار الاختبار
 app.get("/", (_req, res) => {
