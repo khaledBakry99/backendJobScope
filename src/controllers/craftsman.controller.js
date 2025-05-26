@@ -618,78 +618,8 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
   res.json(craftsmanObj);
 });
 
-// Actualizar galería de trabajos
-exports.updateWorkGallery = asyncHandler(async (req, res) => {
-  // Verificar errores de validación
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { workGallery } = req.body;
-
-  console.log("Solicitud de actualización de galería recibida:", {
-    userId: req.user.id || req.user._id,
-    workGalleryLength: workGallery ? workGallery.length : 0,
-  });
-
-  // Buscar perfil de artesano
-  let craftsman = await Craftsman.findOne({ user: req.user._id });
-
-  if (!craftsman) {
-    console.log(
-      "Perfil de artesano no encontrado con user._id, intentando con user.id"
-    );
-    craftsman = await Craftsman.findOne({ user: req.user.id });
-
-    if (!craftsman) {
-      console.log("Perfil de artesano no encontrado con ningún ID");
-      return res
-        .status(404)
-        .json({ message: "Perfil de artesano no encontrado" });
-    }
-  }
-
-  // Filtrar URLs vacías o inválidas
-  const validGallery = Array.isArray(workGallery)
-    ? workGallery.filter((url) => url && url !== "undefined" && url !== "null")
-    : [];
-
-  console.log("Galería filtrada:", {
-    original: workGallery ? workGallery.length : 0,
-    filtered: validGallery.length,
-  });
-
-  // Actualizar galería
-  craftsman.workGallery = validGallery;
-  await craftsman.save();
-
-  console.log("Galería actualizada con éxito:", {
-    craftsmanId: craftsman._id,
-    gallerySize: craftsman.workGallery.length,
-  });
-
-  // تحويل البيانات إلى كائن عادي للتعديل
-  const craftsmanObj = craftsman.toObject();
-
-  // إضافة حقل الصورة من بيانات المستخدم إذا كانت متوفرة
-  if (
-    craftsmanObj.user &&
-    craftsmanObj.user.profilePicture &&
-    craftsmanObj.user.profilePicture !== ""
-  ) {
-    craftsmanObj.image = craftsmanObj.user.profilePicture;
-  } else {
-    // استخدام صورة افتراضية إذا لم تكن هناك صورة
-    craftsmanObj.image = "/img/user-avatar.svg";
-  }
-
-  // إضافة معرض الأعمال للاستجابة بكلا الاسمين للتوافق
-  craftsmanObj.gallery = craftsman.workGallery;
-  craftsmanObj.workGallery = craftsman.workGallery;
-
-  res.json(craftsmanObj);
-});
+// ملاحظة: تم حذف updateWorkGallery القديم المعقد
+// الآن نستخدم APIs محسنة في routes مباشرة
 
 // Actualizar disponibilidad
 exports.updateAvailability = asyncHandler(async (req, res) => {

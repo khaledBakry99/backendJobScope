@@ -74,13 +74,10 @@ router.put(
   craftsmanController.updateCraftsmanProfile
 );
 
-// Actualizar galería de trabajos
-router.put(
-  "/me/gallery",
-  authorize("craftsman"),
-  [check("workGallery", "La galería debe ser un array").isArray()],
-  craftsmanController.updateWorkGallery
-);
+// ملاحظة: تم حذف route updateGallery القديم المعقد
+// الآن نستخدم فقط:
+// - DELETE /me/gallery/:imageIndex لحذف صورة واحدة
+// - POST /me/upload-gallery لرفع صور جديدة
 
 // Obtener galería de trabajos del artesano actual
 router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
@@ -126,38 +123,19 @@ router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
       workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0,
     });
 
-    // Filtrar solo صور Base64 صالحة وحذف مسارات /uploads/ القديمة
-    const validGallery = Array.isArray(craftsman.workGallery)
-      ? craftsman.workGallery.filter(
-          (url) => url &&
-                   url !== "undefined" &&
-                   url !== "null" &&
-                   url.startsWith('data:image/')  // فقط صور Base64
-        )
-      : [];
+    // إرجاع المعرض مباشرة (Cloudinary URLs أو كائنات)
+    const gallery = craftsman.workGallery || [];
 
-    console.log("Galería filtrada في /me/gallery (Base64 فقط):", {
-      original: craftsman.workGallery ? craftsman.workGallery.length : 0,
-      filtered: validGallery.length,
-      removedOldPaths: (craftsman.workGallery ? craftsman.workGallery.length : 0) - validGallery.length
+    console.log("📂 إرجاع معرض الصور:", {
+      totalImages: gallery.length,
+      imageTypes: gallery.map(item => typeof item === 'object' ? 'object' : 'string')
     });
 
-    // Si hay diferencia entre la galería original y la filtrada, actualizar en la base de datos
-    if (
-      validGallery.length !==
-      (craftsman.workGallery ? craftsman.workGallery.length : 0)
-    ) {
-      console.log(
-        "Actualizando galería en la base de datos después de filtrar"
-      );
-      craftsman.workGallery = validGallery;
-      await craftsman.save();
-    }
-
-    // Devolver la galería con ambos nombres para compatibilidad
+    // Devolver la galería مع دعم كامل لـ Cloudinary
     res.json({
-      gallery: validGallery,
-      workGallery: validGallery,
+      gallery: gallery,
+      workGallery: gallery,
+      totalImages: gallery.length
     });
   } catch (error) {
     console.error("Error al obtener la galería:", error);
@@ -185,11 +163,11 @@ router.put(
   craftsmanController.updateStreetsInWorkRange
 );
 
-// حذف صورة واحدة من المعرض
+// حذف صورة واحدة من المعرض (محسن مع Cloudinary)
 router.delete("/me/gallery/:imageIndex", authorize("craftsman"), async (req, res) => {
   try {
     const imageIndex = parseInt(req.params.imageIndex);
-    console.log("طلب حذف صورة:", {
+    console.log("🗑️ طلب حذف صورة:", {
       userId: req.user.id || req.user._id,
       imageIndex: imageIndex,
     });
@@ -199,7 +177,7 @@ router.delete("/me/gallery/:imageIndex", authorize("craftsman"), async (req, res
     });
 
     if (!craftsman) {
-      return res.status(404).json({ message: "Artesano no encontrado" });
+      return res.status(404).json({ message: "الحرفي غير موجود" });
     }
 
     // التحقق من صحة الفهرس
@@ -210,136 +188,164 @@ router.delete("/me/gallery/:imageIndex", authorize("craftsman"), async (req, res
       });
     }
 
+    // الحصول على الصورة المراد حذفها
+    const imageToDelete = craftsman.workGallery[imageIndex];
+    console.log("🔍 الصورة المراد حذفها:", imageToDelete);
+
+    // حذف الصورة من Cloudinary إذا كانت مرفوعة عليه
+    if (imageToDelete && typeof imageToDelete === 'object' && imageToDelete.public_id) {
+      try {
+        const { deleteImage } = require('../services/cloudinary.service');
+        const deleteResult = await deleteImage(imageToDelete.public_id);
+        console.log("🗑️ تم حذف الصورة من Cloudinary:", deleteResult);
+      } catch (cloudinaryError) {
+        console.error("⚠️ خطأ في حذف الصورة من Cloudinary:", cloudinaryError.message);
+        // نكمل العملية حتى لو فشل حذف الصورة من Cloudinary
+      }
+    }
+
     // حذف الصورة من المعرض
     const removedImage = craftsman.workGallery.splice(imageIndex, 1)[0];
-
     await craftsman.save();
 
-    console.log("تم حذف الصورة بنجاح:", {
+    console.log("✅ تم حذف الصورة بنجاح:", {
       craftsmanId: craftsman._id,
       removedImageIndex: imageIndex,
-      removedImagePreview: removedImage ? removedImage.substring(0, 50) + '...' : 'null',
       remainingImages: craftsman.workGallery.length,
     });
 
     res.json({
+      success: true,
       message: "تم حذف الصورة بنجاح",
       removedImageIndex: imageIndex,
       workGallery: craftsman.workGallery,
       gallery: craftsman.workGallery, // للتوافق مع الواجهة
+      totalImages: craftsman.workGallery.length
     });
   } catch (error) {
-    console.error("خطأ في حذف الصورة:", error);
-    res.status(500).json({ message: "خطأ في الخادم" });
+    console.error("❌ خطأ في حذف الصورة:", error);
+    res.status(500).json({
+      success: false,
+      message: "خطأ في الخادم",
+      error: error.message
+    });
   }
 });
 
-// Subir imágenes para la galería de trabajos (مباشرة إلى Base64)
+// رفع الصور إلى Cloudinary (أسرع وأكثر احترافية)
 router.post(
   "/me/upload-gallery",
   authorize("craftsman"),
-  uploadMultipleImages("galleryImages", 5),
+  uploadMultipleImages("galleryImages", 10),
   async (req, res) => {
     try {
-      console.log("Solicitud de carga de imágenes recibida:", {
+      console.log("🚀 طلب رفع صور جديد:", {
         files: req.files ? req.files.length : 0,
         userId: req.user.id || req.user._id,
       });
 
       if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ message: "No se han subido imágenes" });
+        return res.status(400).json({ message: "لم يتم رفع أي صور" });
       }
 
-      // تحويل الصور إلى Base64 مباشرة من الذاكرة بدون حفظ في مجلد
-      const imageBase64Array = [];
+      // استيراد خدمة Cloudinary
+      const { uploadImage } = require('../services/cloudinary.service');
 
-      for (const file of req.files) {
+      // رفع الصور إلى Cloudinary بشكل متوازي (أسرع)
+      const uploadPromises = req.files.map(async (file, index) => {
         try {
-          // تحويل الملف إلى Base64 مباشرة من buffer
-          const base64String = `data:${
-            file.mimetype
-          };base64,${file.buffer.toString("base64")}`;
-
-          imageBase64Array.push(base64String);
-
-          console.log("تم تحويل صورة إلى Base64 مباشرة:", {
-            originalName: file.originalname,
+          console.log(`📤 رفع الصورة ${index + 1}/${req.files.length}:`, {
+            name: file.originalname,
             size: file.size,
-            base64Length: base64String.length,
+            type: file.mimetype
           });
-        } catch (fileError) {
-          console.error("خطأ في معالجة الملف:", file.originalname, fileError);
+
+          const result = await uploadImage(file.buffer, {
+            folder: `jobscope/gallery/${req.user.id || req.user._id}`,
+            public_id: `gallery_${Date.now()}_${index}`,
+          });
+
+          console.log(`✅ تم رفع الصورة ${index + 1} بنجاح:`, {
+            url: result.url,
+            size: result.size,
+            format: result.format
+          });
+
+          return result;
+        } catch (error) {
+          console.error(`❌ فشل رفع الصورة ${index + 1}:`, error.message);
+          throw error;
         }
-      }
+      });
 
-      console.log("تم تحويل الصور إلى Base64:", imageBase64Array.length);
+      // انتظار رفع جميع الصور
+      const uploadResults = await Promise.all(uploadPromises);
+      console.log(`🎉 تم رفع ${uploadResults.length} صور بنجاح إلى Cloudinary`);
 
-      // Buscar el perfil del artesano
-      let craftsman = null;
-
-      // Primero intentar con req.user.id
-      if (req.user.id) {
-        craftsman = await Craftsman.findOne({ user: req.user.id });
-        if (craftsman) {
-          console.log("Craftsman encontrado con req.user.id");
-        }
-      }
-
-      // Si no se encuentra, intentar con req.user._id
-      if (!craftsman && req.user._id) {
-        craftsman = await Craftsman.findOne({ user: req.user._id });
-        if (craftsman) {
-          console.log("Craftsman encontrado con req.user._id");
-        }
-      }
+      // البحث عن الحرفي
+      const craftsman = await Craftsman.findOne({
+        user: req.user.id || req.user._id,
+      });
 
       if (!craftsman) {
-        console.log("Perfil de artesano no encontrado con ningún ID");
-        return res
-          .status(404)
-          .json({ message: "Perfil de artesano no encontrado" });
+        console.log("❌ لم يتم العثور على ملف الحرفي");
+        return res.status(404).json({ message: "ملف الحرفي غير موجود" });
       }
 
-      // Obtener la galería actual y filtrar solo صور Base64 صالحة
+      // الحصول على المعرض الحالي (URLs فقط، ليس Base64)
       let currentGallery = [];
       if (craftsman.workGallery && Array.isArray(craftsman.workGallery)) {
-        // الاحتفاظ فقط بصور Base64 وحذف مسارات /uploads/ القديمة
+        // الاحتفاظ بـ URLs من Cloudinary فقط
         currentGallery = craftsman.workGallery.filter(
-          (url) => url &&
-                   url !== "undefined" &&
-                   url !== "null" &&
-                   url.startsWith('data:image/')  // فقط صور Base64
+          (item) => {
+            if (typeof item === 'string') {
+              return item.startsWith('http'); // URLs من Cloudinary
+            } else if (typeof item === 'object' && item.url) {
+              return item.url.startsWith('http'); // كائنات بها URL
+            }
+            return false;
+          }
         );
       }
 
-      console.log("Galería actual بعد تصفية صور Base64 فقط:", {
+      console.log("📂 المعرض الحالي:", {
         originalLength: craftsman.workGallery ? craftsman.workGallery.length : 0,
         filteredLength: currentGallery.length,
-        currentGalleryItems: currentGallery.map(img => img.substring(0, 50) + '...')
       });
 
-      // Combinar الصور الحالية (Base64 فقط) مع الصور الجديدة
-      const updatedGallery = [...currentGallery, ...imageBase64Array];
+      // إنشاء مصفوفة الصور الجديدة (كائنات بمعلومات كاملة)
+      const newImages = uploadResults.map(result => ({
+        url: result.url,
+        thumbnail_url: result.thumbnail_url,
+        public_id: result.public_id,
+        size: result.size,
+        format: result.format,
+        uploaded_at: new Date()
+      }));
 
-      console.log("Galería después de la actualización:", {
-        currentGallery: currentGallery.length,
-        newImages: imageBase64Array.length,
-        updatedGallery: updatedGallery.length,
+      // دمج الصور الحالية مع الجديدة
+      const updatedGallery = [...currentGallery, ...newImages];
+
+      console.log("📊 إحصائيات المعرض المحدث:", {
+        currentImages: currentGallery.length,
+        newImages: newImages.length,
+        totalImages: updatedGallery.length,
       });
 
-      // Guardar la galería actualizada
+      // حفظ المعرض المحدث
       craftsman.workGallery = updatedGallery;
       await craftsman.save();
 
-      console.log("Galería guardada en la base de datos:", {
-        savedGalleryLength: craftsman.workGallery.length,
-      });
+      console.log("💾 تم حفظ المعرض في قاعدة البيانات بنجاح");
 
-      // Devolver الصور المحولة والمعرض المحدث
+      // إرجاع النتيجة
       res.json({
-        imageUrls: imageBase64Array,
-        gallery: craftsman.workGallery,
-        workGallery: craftsman.workGallery,
+        success: true,
+        message: `تم رفع ${newImages.length} صور بنجاح`,
+        newImages: newImages,
+        gallery: updatedGallery,
+        workGallery: updatedGallery,
+        totalImages: updatedGallery.length
       });
     } catch (error) {
       console.error("Error al subir imágenes:", error);

@@ -59,12 +59,9 @@ const updateExpiredBookings = async () => {
 const startCronJobs = () => {
   // تشغيل المهمة كل دقيقة
   cron.schedule('* * * * *', async () => {
-    console.log(`[${new Date().toISOString()}] تشغيل مهمة تحديث الطلبات المنتهية`);
     const count = await updateExpiredBookings();
-    console.log(`[${new Date().toISOString()}] تم تحديث ${count} طلب منتهي الصلاحية`);
   });
   
-  console.log('تم بدء مجدول المهام لتحديث الطلبات المنتهية');
 };
 
 module.exports = {
