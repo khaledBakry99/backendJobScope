@@ -248,39 +248,94 @@ router.post(
         return res.status(400).json({ message: "لم يتم رفع أي صور" });
       }
 
-      // استيراد خدمة Cloudinary
-      const { uploadImage } = require('../services/cloudinary.service');
+      // محاولة استيراد خدمة Cloudinary مع fallback
+      let uploadImage;
+      let useCloudinary = true;
 
-      // رفع الصور إلى Cloudinary بشكل متوازي (أسرع)
-      const uploadPromises = req.files.map(async (file, index) => {
+      try {
+        const cloudinaryService = require('../services/cloudinary.service');
+        uploadImage = cloudinaryService.uploadImage;
+        console.log("✅ تم تحميل خدمة Cloudinary بنجاح");
+      } catch (cloudinaryError) {
+        console.error("❌ فشل في تحميل خدمة Cloudinary:", cloudinaryError.message);
+        console.log("🔄 التبديل إلى النظام القديم (Base64)");
+        useCloudinary = false;
+      }
+
+      let uploadResults = [];
+
+      if (useCloudinary) {
+        // رفع الصور إلى Cloudinary بشكل متوازي (أسرع)
+        const uploadPromises = req.files.map(async (file, index) => {
+          try {
+            console.log(`📤 رفع الصورة ${index + 1}/${req.files.length} إلى Cloudinary:`, {
+              name: file.originalname,
+              size: file.size,
+              type: file.mimetype
+            });
+
+            const result = await uploadImage(file.buffer, {
+              folder: `jobscope/gallery/${req.user.id || req.user._id}`,
+              public_id: `gallery_${Date.now()}_${index}`,
+            });
+
+            console.log(`✅ تم رفع الصورة ${index + 1} بنجاح إلى Cloudinary:`, {
+              url: result.url,
+              size: result.size,
+              format: result.format
+            });
+
+            return result;
+          } catch (error) {
+            console.error(`❌ فشل رفع الصورة ${index + 1} إلى Cloudinary:`, error.message);
+            throw error;
+          }
+        });
+
         try {
-          console.log(`📤 رفع الصورة ${index + 1}/${req.files.length}:`, {
-            name: file.originalname,
-            size: file.size,
-            type: file.mimetype
-          });
-
-          const result = await uploadImage(file.buffer, {
-            folder: `jobscope/gallery/${req.user.id || req.user._id}`,
-            public_id: `gallery_${Date.now()}_${index}`,
-          });
-
-          console.log(`✅ تم رفع الصورة ${index + 1} بنجاح:`, {
-            url: result.url,
-            size: result.size,
-            format: result.format
-          });
-
-          return result;
-        } catch (error) {
-          console.error(`❌ فشل رفع الصورة ${index + 1}:`, error.message);
-          throw error;
+          // انتظار رفع جميع الصور
+          uploadResults = await Promise.all(uploadPromises);
+          console.log(`🎉 تم رفع ${uploadResults.length} صور بنجاح إلى Cloudinary`);
+        } catch (cloudinaryUploadError) {
+          console.error("❌ فشل في رفع الصور إلى Cloudinary:", cloudinaryUploadError.message);
+          console.log("🔄 التبديل إلى النظام القديم (Base64)");
+          useCloudinary = false;
         }
-      });
+      }
 
-      // انتظار رفع جميع الصور
-      const uploadResults = await Promise.all(uploadPromises);
-      console.log(`🎉 تم رفع ${uploadResults.length} صور بنجاح إلى Cloudinary`);
+      if (!useCloudinary) {
+        // النظام البديل: تحويل إلى Base64
+        console.log("📤 استخدام النظام البديل (Base64)");
+
+        uploadResults = req.files.map((file, index) => {
+          try {
+            console.log(`📤 تحويل الصورة ${index + 1}/${req.files.length} إلى Base64:`, {
+              name: file.originalname,
+              size: file.size,
+              type: file.mimetype
+            });
+
+            // تحويل الملف إلى Base64 مباشرة من buffer
+            const base64String = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+
+            console.log(`✅ تم تحويل الصورة ${index + 1} إلى Base64 بنجاح`);
+
+            return {
+              url: base64String,
+              thumbnail_url: base64String, // نفس الصورة للـ thumbnail
+              public_id: `base64_${Date.now()}_${index}`,
+              size: file.size,
+              format: file.mimetype.split('/')[1],
+              uploaded_at: new Date()
+            };
+          } catch (error) {
+            console.error(`❌ فشل تحويل الصورة ${index + 1} إلى Base64:`, error.message);
+            throw error;
+          }
+        });
+
+        console.log(`🎉 تم تحويل ${uploadResults.length} صور إلى Base64 بنجاح`);
+      }
 
       // البحث عن الحرفي
       const craftsman = await Craftsman.findOne({
@@ -342,17 +397,32 @@ router.post(
       res.json({
         success: true,
         message: `تم رفع ${newImages.length} صور بنجاح`,
+        method: useCloudinary ? 'cloudinary' : 'base64',
         newImages: newImages,
         gallery: updatedGallery,
         workGallery: updatedGallery,
         totalImages: updatedGallery.length
       });
     } catch (error) {
-      console.error("Error al subir imágenes:", error);
+      console.error("❌ خطأ في رفع الصور:", error);
+
+      // تحديد نوع الخطأ
+      let errorMessage = "خطأ في رفع الصور";
+      let errorDetails = error.message;
+
+      if (error.message && error.message.includes('cloudinary')) {
+        errorMessage = "خطأ في خدمة Cloudinary - تم التبديل إلى النظام البديل";
+      } else if (error.message && error.message.includes('multer')) {
+        errorMessage = "خطأ في معالجة الملفات المرفوعة";
+      } else if (error.message && error.message.includes('validation')) {
+        errorMessage = "خطأ في التحقق من صحة البيانات";
+      }
+
       res.status(500).json({
-        message: "Error al subir imágenes",
-        error: error.message,
-        stack: error.stack,
+        success: false,
+        message: errorMessage,
+        error: errorDetails,
+        timestamp: new Date().toISOString()
       });
     }
   }
