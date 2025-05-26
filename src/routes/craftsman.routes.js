@@ -126,20 +126,16 @@ router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
       workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0,
     });
 
-    // Filtrar solo صور Base64 صالحة وحذف مسارات /uploads/ القديمة
+    // إرجاع جميع الصور بدون تصفية (سيتم التصفية في الفرونت إند)
     const validGallery = Array.isArray(craftsman.workGallery)
       ? craftsman.workGallery.filter(
-          (url) => url &&
-                   url !== "undefined" &&
-                   url !== "null" &&
-                   url.startsWith('data:image/')  // فقط صور Base64
+          (url) => url && url !== "undefined" && url !== "null"
         )
       : [];
 
-    console.log("Galería filtrada في /me/gallery (Base64 فقط):", {
+    console.log("Galería في /me/gallery:", {
       original: craftsman.workGallery ? craftsman.workGallery.length : 0,
       filtered: validGallery.length,
-      removedOldPaths: (craftsman.workGallery ? craftsman.workGallery.length : 0) - validGallery.length
     });
 
     // Si hay diferencia entre la galería original y la filtrada, actualizar en la base de datos
@@ -251,22 +247,18 @@ router.post(
           .json({ message: "Perfil de artesano no encontrado" });
       }
 
-      // Obtener la galería actual y filtrar solo صور Base64 صالحة
+      // Obtener la galería actual
       let currentGallery = [];
       if (craftsman.workGallery && Array.isArray(craftsman.workGallery)) {
-        // الاحتفاظ فقط بصور Base64 وحذف مسارات /uploads/ القديمة
+        // تصفية الصور الصالحة فقط (إزالة القيم الفارغة)
         currentGallery = craftsman.workGallery.filter(
-          (url) => url &&
-                   url !== "undefined" &&
-                   url !== "null" &&
-                   url.startsWith('data:image/')  // فقط صور Base64
+          (url) => url && url !== "undefined" && url !== "null"
         );
       }
 
-      console.log("Galería actual بعد تصفية صور Base64 فقط:", {
+      console.log("Galería actual:", {
         originalLength: craftsman.workGallery ? craftsman.workGallery.length : 0,
         filteredLength: currentGallery.length,
-        currentGalleryItems: currentGallery.map(img => img.substring(0, 50) + '...')
       });
 
       // Combinar الصور الحالية (Base64 فقط) مع الصور الجديدة
