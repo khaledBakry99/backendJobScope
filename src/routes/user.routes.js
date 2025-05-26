@@ -35,22 +35,17 @@ router.put(
 // Desactivar cuenta
 router.put('/deactivate', userController.deactivateAccount);
 
-// Subir imagen de perfil (حفظ كـ Base64)
+// Subir imagen de perfil (مباشرة إلى Base64)
 router.post('/upload-profile-image', uploadSingleImage('profileImage'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No se ha subido ninguna imagen' });
   }
 
   try {
-    // قراءة الملف وتحويله إلى Base64
-    const fs = require('fs');
-    const fileBuffer = fs.readFileSync(req.file.path);
-    const base64String = `data:${req.file.mimetype};base64,${fileBuffer.toString('base64')}`;
+    // تحويل الملف إلى Base64 مباشرة من buffer
+    const base64String = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
 
-    // حذف الملف المؤقت بعد التحويل
-    fs.unlinkSync(req.file.path);
-
-    console.log("تم تحويل صورة الملف الشخصي إلى Base64:", {
+    console.log("تم تحويل صورة الملف الشخصي إلى Base64 مباشرة:", {
       originalname: req.file.originalname,
       size: req.file.size,
       base64Length: base64String.length

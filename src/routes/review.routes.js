@@ -44,7 +44,7 @@ router.post(
 // Rutas protegidas (requieren autenticación)
 router.use(protect);
 
-// Subir imágenes para una reseña (حفظ كـ Base64)
+// Subir imágenes para una reseña (مباشرة إلى Base64)
 router.post(
   '/upload-images',
   authorize('client'),
@@ -55,19 +55,20 @@ router.post(
     }
 
     try {
-      const fs = require('fs');
       const imageBase64Array = [];
 
       for (const file of req.files) {
         try {
-          // قراءة الملف وتحويله إلى Base64
-          const fileBuffer = fs.readFileSync(file.path);
-          const base64String = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
+          // تحويل الملف إلى Base64 مباشرة من buffer
+          const base64String = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
 
           imageBase64Array.push(base64String);
 
-          // حذف الملف المؤقت بعد التحويل
-          fs.unlinkSync(file.path);
+          console.log("تم تحويل صورة تقييم إلى Base64 مباشرة:", {
+            originalName: file.originalname,
+            size: file.size,
+            base64Length: base64String.length
+          });
         } catch (fileError) {
           console.error("خطأ في معالجة ملف التقييم:", file.originalname, fileError);
         }

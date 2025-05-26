@@ -128,17 +128,24 @@ router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
 
     // Filtrar URLs vacías o inválidas
     const validGallery = Array.isArray(craftsman.workGallery)
-      ? craftsman.workGallery.filter(url => url && url !== "undefined" && url !== "null")
+      ? craftsman.workGallery.filter(
+          (url) => url && url !== "undefined" && url !== "null"
+        )
       : [];
 
     console.log("Galería filtrada en /me/gallery:", {
       original: craftsman.workGallery ? craftsman.workGallery.length : 0,
-      filtered: validGallery.length
+      filtered: validGallery.length,
     });
 
     // Si hay diferencia entre la galería original y la filtrada, actualizar en la base de datos
-    if (validGallery.length !== (craftsman.workGallery ? craftsman.workGallery.length : 0)) {
-      console.log("Actualizando galería en la base de datos después de filtrar");
+    if (
+      validGallery.length !==
+      (craftsman.workGallery ? craftsman.workGallery.length : 0)
+    ) {
+      console.log(
+        "Actualizando galería en la base de datos después de filtrar"
+      );
       craftsman.workGallery = validGallery;
       await craftsman.save();
     }
@@ -174,7 +181,7 @@ router.put(
   craftsmanController.updateStreetsInWorkRange
 );
 
-// Subir imágenes para la galería de trabajos
+// Subir imágenes para la galería de trabajos (مباشرة إلى Base64)
 router.post(
   "/me/upload-gallery",
   authorize("craftsman"),
@@ -183,34 +190,29 @@ router.post(
     try {
       console.log("Solicitud de carga de imágenes recibida:", {
         files: req.files ? req.files.length : 0,
-        userId: req.user.id || req.user._id
+        userId: req.user.id || req.user._id,
       });
 
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ message: "No se han subido imágenes" });
       }
 
-      // تحويل الصور إلى Base64 بدلاً من حفظها في مجلد
-      const fs = require('fs');
-      const path = require('path');
-
+      // تحويل الصور إلى Base64 مباشرة من الذاكرة بدون حفظ في مجلد
       const imageBase64Array = [];
 
       for (const file of req.files) {
         try {
-          // قراءة الملف وتحويله إلى Base64
-          const fileBuffer = fs.readFileSync(file.path);
-          const base64String = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
+          // تحويل الملف إلى Base64 مباشرة من buffer
+          const base64String = `data:${
+            file.mimetype
+          };base64,${file.buffer.toString("base64")}`;
 
           imageBase64Array.push(base64String);
 
-          // حذف الملف المؤقت بعد التحويل
-          fs.unlinkSync(file.path);
-
-          console.log("تم تحويل صورة إلى Base64:", {
+          console.log("تم تحويل صورة إلى Base64 مباشرة:", {
             originalName: file.originalname,
             size: file.size,
-            base64Length: base64String.length
+            base64Length: base64String.length,
           });
         } catch (fileError) {
           console.error("خطأ في معالجة الملف:", file.originalname, fileError);
@@ -240,19 +242,23 @@ router.post(
 
       if (!craftsman) {
         console.log("Perfil de artesano no encontrado con ningún ID");
-        return res.status(404).json({ message: "Perfil de artesano no encontrado" });
+        return res
+          .status(404)
+          .json({ message: "Perfil de artesano no encontrado" });
       }
 
       // Obtener la galería actual y asegurarse de que sea un array
       let currentGallery = [];
       if (craftsman.workGallery && Array.isArray(craftsman.workGallery)) {
         // Filtrar URLs vacías o inválidas
-        currentGallery = craftsman.workGallery.filter(url => url && url !== "undefined" && url !== "null");
+        currentGallery = craftsman.workGallery.filter(
+          (url) => url && url !== "undefined" && url !== "null"
+        );
       }
 
       console.log("Galería actual antes de la actualización:", {
         currentGalleryLength: currentGallery.length,
-        currentGalleryItems: currentGallery
+        currentGalleryItems: currentGallery,
       });
 
       // Combinar la galería actual مع الصور الجديدة المحولة إلى Base64
@@ -261,7 +267,7 @@ router.post(
       console.log("Galería después de la actualización:", {
         currentGallery: currentGallery.length,
         newImages: imageBase64Array.length,
-        updatedGallery: updatedGallery.length
+        updatedGallery: updatedGallery.length,
       });
 
       // Guardar la galería actualizada
@@ -269,21 +275,21 @@ router.post(
       await craftsman.save();
 
       console.log("Galería guardada en la base de datos:", {
-        savedGalleryLength: craftsman.workGallery.length
+        savedGalleryLength: craftsman.workGallery.length,
       });
 
       // Devolver الصور المحولة والمعرض المحدث
       res.json({
         imageUrls: imageBase64Array,
         gallery: craftsman.workGallery,
-        workGallery: craftsman.workGallery
+        workGallery: craftsman.workGallery,
       });
     } catch (error) {
       console.error("Error al subir imágenes:", error);
       res.status(500).json({
         message: "Error al subir imágenes",
         error: error.message,
-        stack: error.stack
+        stack: error.stack,
       });
     }
   }

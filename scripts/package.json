@@ -1,0 +1,13 @@
+{
+  "name": "jobscope-scripts",
+  "version": "1.0.0",
+  "description": "سكريبتات صيانة لمنصة JobScope",
+  "scripts": {
+    "update-images": "node updateOldImages.js",
+    "clean-uploads": "node cleanOldUploads.js",
+    "migrate-all": "npm run update-images && npm run clean-uploads"
+  },
+  "dependencies": {
+    "mongoose": "^7.0.0"
+  }
+}

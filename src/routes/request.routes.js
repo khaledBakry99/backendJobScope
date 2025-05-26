@@ -80,7 +80,7 @@ router.put(
 // حذف طلب
 router.delete('/:id', requestController.deleteRequest);
 
-// رفع صور للطلب (حفظ كـ Base64)
+// رفع صور للطلب (مباشرة إلى Base64)
 router.post(
   '/upload-images',
   uploadMultipleImages('requestImages', 5),
@@ -90,19 +90,20 @@ router.post(
     }
 
     try {
-      const fs = require('fs');
       const imageBase64Array = [];
 
       for (const file of req.files) {
         try {
-          // قراءة الملف وتحويله إلى Base64
-          const fileBuffer = fs.readFileSync(file.path);
-          const base64String = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
+          // تحويل الملف إلى Base64 مباشرة من buffer
+          const base64String = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
 
           imageBase64Array.push(base64String);
 
-          // حذف الملف المؤقت بعد التحويل
-          fs.unlinkSync(file.path);
+          console.log("تم تحويل صورة طلب إلى Base64 مباشرة:", {
+            originalName: file.originalname,
+            size: file.size,
+            base64Length: base64String.length
+          });
         } catch (fileError) {
           console.error("خطأ في معالجة ملف الطلب:", file.originalname, fileError);
         }
