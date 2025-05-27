@@ -142,29 +142,10 @@ router.post(
   uploadMultipleImages("galleryImages", 5),
   async (req, res) => {
     try {
-      // التحقق من وجود بيانات المستخدم
-      if (!req.user) {
-        return res.status(401).json({
-          success: false,
-          message: "المستخدم غير مصرح له"
-        });
-      }
-
-      const userId = req.user.id || req.user._id;
-
       console.log("طلب رفع صور المعرض:", {
         files: req.files ? req.files.length : 0,
-        userId: userId,
-        userType: req.user.userType || req.user.role,
+        userId: req.user.id || req.user._id,
       });
-
-      // التحقق من صحة معرف المستخدم
-      if (!userId) {
-        return res.status(400).json({
-          success: false,
-          message: "معرف المستخدم غير صالح"
-        });
-      }
 
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({
@@ -174,7 +155,9 @@ router.post(
       }
 
       // البحث عن الحرفي
-      let craftsman = await Craftsman.findOne({ user: userId });
+      let craftsman = await Craftsman.findOne({
+        user: req.user.id || req.user._id,
+      });
 
       if (!craftsman) {
         return res.status(404).json({
@@ -250,32 +233,15 @@ router.delete("/me/gallery/:imageUrl", async (req, res) => {
   try {
     const imageUrl = decodeURIComponent(req.params.imageUrl);
 
-    // التحقق من وجود بيانات المستخدم
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "المستخدم غير مصرح له"
-      });
-    }
-
-    const userId = req.user.id || req.user._id;
-
     console.log("طلب حذف صورة من المعرض:", {
       imageUrl: imageUrl,
-      userId: userId,
-      userType: req.user.userType || req.user.role,
+      userId: req.user.id || req.user._id,
     });
 
-    // التحقق من صحة معرف المستخدم
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: "معرف المستخدم غير صالح"
-      });
-    }
-
     // البحث عن الحرفي
-    let craftsman = await Craftsman.findOne({ user: userId });
+    let craftsman = await Craftsman.findOne({
+      user: req.user.id || req.user._id,
+    });
 
     if (!craftsman) {
       return res.status(404).json({
@@ -327,42 +293,16 @@ router.delete("/me/gallery/:imageUrl", async (req, res) => {
 // جلب معرض الصور
 router.get("/me/gallery", async (req, res) => {
   try {
-    // التحقق من وجود بيانات المستخدم
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "المستخدم غير مصرح له",
-        data: {
-          gallery: [],
-          workGallery: [],
-        },
-      });
-    }
-
-    const userId = req.user.id || req.user._id;
-
-    console.log("طلب جلب معرض الصور للمستخدم الحالي:", {
-      userId: userId,
-      userType: req.user.userType || req.user.role,
+    console.log("طلب جلب معرض الصور:", {
+      userId: req.user.id || req.user._id,
     });
 
-    // التحقق من صحة معرف المستخدم
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: "معرف المستخدم غير صالح",
-        data: {
-          gallery: [],
-          workGallery: [],
-        },
-      });
-    }
-
     // البحث عن الحرفي
-    let craftsman = await Craftsman.findOne({ user: userId });
+    let craftsman = await Craftsman.findOne({
+      user: req.user.id || req.user._id,
+    });
 
     if (!craftsman) {
-      console.log("لم يتم العثور على ملف حرفي للمستخدم:", userId);
       return res.status(404).json({
         success: false,
         message: "ملف الحرفي غير موجود",
@@ -376,8 +316,6 @@ router.get("/me/gallery", async (req, res) => {
     const gallery = craftsman.workGallery || [];
 
     console.log("تم جلب معرض الصور بنجاح:", {
-      craftsmanId: craftsman._id,
-      userId: userId,
       imagesCount: gallery.length,
     });
 
