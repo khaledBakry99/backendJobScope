@@ -1,7 +1,7 @@
 const express = require('express');
 const { check } = require('express-validator');
 const reviewController = require('../controllers/review.controller');
-const { protect, authorize } = require('../middleware/auth.middleware');
+const { protect } = require('../middleware/auth.middleware');
 const { uploadMultipleImages } = require('../middleware/upload.middleware');
 
 const router = express.Router();
@@ -47,7 +47,6 @@ router.use(protect);
 // Subir imágenes para una reseña (مباشرة إلى Base64)
 router.post(
   '/upload-images',
-  authorize('client'),
   uploadMultipleImages('reviewImages', 3),
   (req, res) => {
     if (!req.files || req.files.length === 0) {

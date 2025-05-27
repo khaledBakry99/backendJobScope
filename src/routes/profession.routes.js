@@ -13,7 +13,7 @@ router.get('/', professionController.getAllProfessions);
 router.get('/:id', professionController.getProfessionById);
 
 // Rutas de administrador
-router.use(protect, authorize('admin'));
+router.use(protect);
 
 // Crear una nueva profesión
 router.post(
