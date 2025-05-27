@@ -1,7 +1,7 @@
 const express = require("express");
 const { check } = require("express-validator");
 const craftsmanController = require("../controllers/craftsman.controller");
-const { protect } = require("../middleware/auth.middleware");
+const { protect, authorize } = require("../middleware/auth.middleware");
 const { uploadMultipleImages } = require("../middleware/upload.middleware");
 const Craftsman = require("../models/craftsman.model");
 
@@ -17,73 +17,8 @@ router.get("/:id", craftsmanController.getCraftsmanById);
 // Obtener las calles dentro del rango de trabajo de un artesano
 router.get("/:id/streets", craftsmanController.getStreetsInWorkRange);
 
-// جلب معرض صور حرفي معين
-router.get("/:id/gallery", async (req, res) => {
-  try {
-    const craftsmanId = req.params.id;
-
-    console.log("طلب جلب معرض صور حرفي:", {
-      craftsmanId: craftsmanId,
-    });
-
-    // التأكد من أن المعرف ليس "me"
-    if (craftsmanId === "me") {
-      return res.status(400).json({
-        success: false,
-        message: "استخدم /me/gallery للحصول على معرضك الشخصي",
-        data: {
-          gallery: [],
-          workGallery: [],
-        },
-      });
-    }
-
-    // البحث عن الحرفي بمعرف الحرفي أو معرف المستخدم
-    let craftsman = await Craftsman.findById(craftsmanId);
-
-    if (!craftsman) {
-      craftsman = await Craftsman.findOne({ user: craftsmanId });
-    }
-
-    if (!craftsman) {
-      return res.status(404).json({
-        success: false,
-        message: "الحرفي غير موجود",
-        data: {
-          gallery: [],
-          workGallery: [],
-        },
-      });
-    }
-
-    const gallery = craftsman.workGallery || [];
-
-    console.log("تم جلب معرض صور الحرفي بنجاح:", {
-      craftsmanId: craftsman._id,
-      imagesCount: gallery.length,
-    });
-
-    res.json({
-      success: true,
-      message: "تم جلب معرض الصور بنجاح",
-      data: {
-        gallery: gallery,
-        workGallery: gallery,
-      },
-    });
-  } catch (error) {
-    console.error("خطأ في جلب معرض صور الحرفي:", error);
-    res.status(500).json({
-      success: false,
-      message: "خطأ في جلب معرض الصور",
-      error: error.message,
-      data: {
-        gallery: [],
-        workGallery: [],
-      },
-    });
-  }
-});
+// Obtener galería de trabajos de un artesano
+router.get("/:id/gallery", craftsmanController.getCraftsmanGallery);
 
 // Buscar artesanos
 router.post(
@@ -115,11 +50,16 @@ router.post(
 router.use(protect);
 
 // Obtener perfil de artesano del usuario actual
-router.get("/me/profile", craftsmanController.getMyProfile);
+router.get(
+  "/me/profile",
+  authorize("craftsman"),
+  craftsmanController.getMyProfile
+);
 
 // Actualizar perfil de artesano
 router.put(
   "/me/profile",
+  authorize("craftsman"),
   [
     check("professions", "Las profesiones deben ser un array")
       .optional()
@@ -134,209 +74,87 @@ router.put(
   craftsmanController.updateCraftsmanProfile
 );
 
-// تم حذف route لتحديث المعرض - سيتم استبداله بطريقة جديدة
-
-// رفع صور المعرض إلى ImgBB
-router.post(
-  "/me/gallery/upload",
-  uploadMultipleImages("galleryImages", 5),
-  async (req, res) => {
-    try {
-      console.log("طلب رفع صور المعرض:", {
-        files: req.files ? req.files.length : 0,
-        userId: req.user.id || req.user._id,
-      });
-
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "لم يتم اختيار أي صور",
-        });
-      }
-
-      // البحث عن الحرفي
-      let craftsman = await Craftsman.findOne({
-        user: req.user.id || req.user._id,
-      });
-
-      if (!craftsman) {
-        return res.status(404).json({
-          success: false,
-          message: "ملف الحرفي غير موجود",
-        });
-      }
-
-      // استيراد خدمة ImgBB
-      const imgbbService = require("../services/imgbb.service");
-
-      // تحضير الصور للرفع
-      const imageBuffers = req.files.map((file) => file.buffer);
-      const imageNames = req.files.map(
-        (file) => `gallery_${craftsman._id}_${Date.now()}_${file.originalname}`
-      );
-
-      // رفع الصور إلى ImgBB
-      const uploadResult = await imgbbService.uploadMultipleImages(
-        imageBuffers,
-        imageNames
-      );
-
-      console.log("نتائج رفع الصور:", uploadResult);
-
-      if (uploadResult.successful.length === 0) {
-        return res.status(500).json({
-          success: false,
-          message: "فشل في رفع جميع الصور",
-          errors: uploadResult.failed,
-        });
-      }
-
-      // إضافة روابط الصور الناجحة إلى معرض الحرفي
-      const newImageUrls = uploadResult.successful.map(
-        (img) => img.display_url
-      );
-      const currentGallery = craftsman.workGallery || [];
-      const updatedGallery = [...currentGallery, ...newImageUrls];
-
-      // تحديث معرض الحرفي
-      craftsman.workGallery = updatedGallery;
-      await craftsman.save();
-
-      console.log("تم تحديث معرض الحرفي بنجاح:", {
-        newImages: newImageUrls.length,
-        totalImages: updatedGallery.length,
-      });
-
-      res.json({
-        success: true,
-        message: "تم رفع الصور بنجاح",
-        data: {
-          uploadedImages: uploadResult.successful,
-          failedImages: uploadResult.failed,
-          gallery: updatedGallery,
-          workGallery: updatedGallery,
-        },
-      });
-    } catch (error) {
-      console.error("خطأ في رفع صور المعرض:", error);
-      res.status(500).json({
-        success: false,
-        message: "خطأ في رفع الصور",
-        error: error.message,
-      });
-    }
-  }
+// Actualizar galería de trabajos
+router.put(
+  "/me/gallery",
+  authorize("craftsman"),
+  [check("workGallery", "La galería debe ser un array").isArray()],
+  craftsmanController.updateWorkGallery
 );
 
-// حذف صورة من المعرض
-router.delete("/me/gallery/:imageUrl", async (req, res) => {
+// Obtener galería de trabajos del artesano actual
+router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
   try {
-    const imageUrl = decodeURIComponent(req.params.imageUrl);
-
-    console.log("طلب حذف صورة من المعرض:", {
-      imageUrl: imageUrl,
-      userId: req.user.id || req.user._id,
+    // Imprimir información de depuración del usuario
+    console.log("Usuario autenticado en /me/gallery:", {
+      id: req.user.id,
+      _id: req.user._id,
+      userKeys: Object.keys(req.user),
     });
 
-    // البحث عن الحرفي
-    let craftsman = await Craftsman.findOne({
-      user: req.user.id || req.user._id,
-    });
+    // Buscar perfil de artesano usando ambos formatos de ID
+    let craftsman = null;
+
+    // Primero intentar con req.user.id
+    if (req.user.id) {
+      craftsman = await Craftsman.findOne({ user: req.user.id });
+      if (craftsman) {
+        console.log("Craftsman encontrado con req.user.id");
+      }
+    }
+
+    // Si no se encuentra, intentar con req.user._id
+    if (!craftsman && req.user._id) {
+      craftsman = await Craftsman.findOne({ user: req.user._id });
+      if (craftsman) {
+        console.log("Craftsman encontrado con req.user._id");
+      }
+    }
 
     if (!craftsman) {
-      return res.status(404).json({
-        success: false,
-        message: "ملف الحرفي غير موجود",
-      });
+      console.log("Perfil de artesano no encontrado con ningún ID");
+      return res
+        .status(404)
+        .json({ message: "Perfil de artesano no encontrado" });
     }
 
-    // التحقق من وجود الصورة في المعرض
-    const currentGallery = craftsman.workGallery || [];
-    const imageIndex = currentGallery.findIndex((url) => url === imageUrl);
-
-    if (imageIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: "الصورة غير موجودة في المعرض",
-      });
-    }
-
-    // حذف الصورة من المعرض
-    const updatedGallery = currentGallery.filter((url) => url !== imageUrl);
-    craftsman.workGallery = updatedGallery;
-    await craftsman.save();
-
-    console.log("تم حذف الصورة من المعرض بنجاح:", {
-      removedImage: imageUrl,
-      remainingImages: updatedGallery.length,
+    // Imprimir información de depuración
+    console.log("Craftsman encontrado en /me/gallery:", {
+      id: craftsman._id,
+      userId: craftsman.user,
+      requestUserId: req.user.id || req.user._id,
+      workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0,
     });
 
+    // Filtrar URLs vacías o inválidas
+    const validGallery = Array.isArray(craftsman.workGallery)
+      ? craftsman.workGallery.filter(url => url && url !== "undefined" && url !== "null")
+      : [];
+
+    console.log("Galería filtrada en /me/gallery:", {
+      original: craftsman.workGallery ? craftsman.workGallery.length : 0,
+      filtered: validGallery.length
+    });
+
+    // Si hay diferencia entre la galería original y la filtrada, actualizar en la base de datos
+    if (validGallery.length !== (craftsman.workGallery ? craftsman.workGallery.length : 0)) {
+      console.log("Actualizando galería en la base de datos después de filtrar");
+      craftsman.workGallery = validGallery;
+      await craftsman.save();
+    }
+
+    // Devolver la galería con ambos nombres para compatibilidad
     res.json({
-      success: true,
-      message: "تم حذف الصورة بنجاح",
-      data: {
-        removedImageUrl: imageUrl,
-        gallery: updatedGallery,
-        workGallery: updatedGallery,
-      },
+      gallery: validGallery,
+      workGallery: validGallery,
     });
   } catch (error) {
-    console.error("خطأ في حذف صورة المعرض:", error);
+    console.error("Error al obtener la galería:", error);
+    console.error("Detalles del error:", error.stack);
     res.status(500).json({
-      success: false,
-      message: "خطأ في حذف الصورة",
+      message: "Error al obtener la galería",
       error: error.message,
-    });
-  }
-});
-
-// جلب معرض الصور
-router.get("/me/gallery", async (req, res) => {
-  try {
-    console.log("طلب جلب معرض الصور:", {
-      userId: req.user.id || req.user._id,
-    });
-
-    // البحث عن الحرفي
-    let craftsman = await Craftsman.findOne({
-      user: req.user.id || req.user._id,
-    });
-
-    if (!craftsman) {
-      return res.status(404).json({
-        success: false,
-        message: "ملف الحرفي غير موجود",
-        data: {
-          gallery: [],
-          workGallery: [],
-        },
-      });
-    }
-
-    const gallery = craftsman.workGallery || [];
-
-    console.log("تم جلب معرض الصور بنجاح:", {
-      imagesCount: gallery.length,
-    });
-
-    res.json({
-      success: true,
-      message: "تم جلب معرض الصور بنجاح",
-      data: {
-        gallery: gallery,
-        workGallery: gallery,
-      },
-    });
-  } catch (error) {
-    console.error("خطأ في جلب معرض الصور:", error);
-    res.status(500).json({
-      success: false,
-      message: "خطأ في جلب معرض الصور",
-      error: error.message,
-      data: {
-        gallery: [],
-        workGallery: [],
-      },
+      stack: error.stack,
     });
   }
 });
@@ -344,6 +162,7 @@ router.get("/me/gallery", async (req, res) => {
 // Actualizar disponibilidad
 router.put(
   "/me/availability",
+  authorize("craftsman"),
   [check("available", "La disponibilidad debe ser un booleano").isBoolean()],
   craftsmanController.updateAvailability
 );
@@ -351,9 +170,100 @@ router.put(
 // Actualizar las calles dentro del rango de trabajo
 router.put(
   "/me/streets",
+  authorize("craftsman"),
   craftsmanController.updateStreetsInWorkRange
 );
 
-// تم حذف API endpoint لرفع الصور - سيتم استبداله بطريقة جديدة
+// Subir imágenes para la galería de trabajos
+router.post(
+  "/me/upload-gallery",
+  authorize("craftsman"),
+  uploadMultipleImages("galleryImages", 5),
+  async (req, res) => {
+    try {
+      console.log("Solicitud de carga de imágenes recibida:", {
+        files: req.files ? req.files.length : 0,
+        userId: req.user.id || req.user._id
+      });
+
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ message: "No se han subido imágenes" });
+      }
+
+      // Generar URLs para las imágenes cargadas
+      const imageUrls = req.files.map((file) => `/uploads/${file.filename}`);
+      console.log("URLs de imágenes generadas:", imageUrls);
+
+      // Buscar el perfil del artesano
+      let craftsman = null;
+
+      // Primero intentar con req.user.id
+      if (req.user.id) {
+        craftsman = await Craftsman.findOne({ user: req.user.id });
+        if (craftsman) {
+          console.log("Craftsman encontrado con req.user.id");
+        }
+      }
+
+      // Si no se encuentra, intentar con req.user._id
+      if (!craftsman && req.user._id) {
+        craftsman = await Craftsman.findOne({ user: req.user._id });
+        if (craftsman) {
+          console.log("Craftsman encontrado con req.user._id");
+        }
+      }
+
+      if (!craftsman) {
+        console.log("Perfil de artesano no encontrado con ningún ID");
+        return res.status(404).json({ message: "Perfil de artesano no encontrado" });
+      }
+
+      // Obtener la galería actual y asegurarse de que sea un array
+      let currentGallery = [];
+      if (craftsman.workGallery && Array.isArray(craftsman.workGallery)) {
+        // Filtrar URLs vacías o inválidas
+        currentGallery = craftsman.workGallery.filter(url => url && url !== "undefined" && url !== "null");
+      }
+
+      console.log("Galería actual antes de la actualización:", {
+        currentGalleryLength: currentGallery.length,
+        currentGalleryItems: currentGallery
+      });
+
+      // Combinar la galería actual con las nuevas imágenes
+      const updatedGallery = [...currentGallery, ...imageUrls];
+
+      console.log("Galería después de la actualización:", {
+        currentGallery: currentGallery.length,
+        newImages: imageUrls.length,
+        updatedGallery: updatedGallery.length,
+        updatedGalleryItems: updatedGallery
+      });
+
+      // Guardar la galería actualizada
+      craftsman.workGallery = updatedGallery;
+      await craftsman.save();
+
+      console.log("Galería guardada en la base de datos:", {
+        savedGalleryLength: craftsman.workGallery.length,
+        savedGalleryItems: craftsman.workGallery
+      });
+
+      // Devolver las URLs de las imágenes y la galería actualizada
+      res.json({
+        imageUrls,
+        gallery: craftsman.workGallery,
+        workGallery: craftsman.workGallery
+      });
+    } catch (error) {
+      console.error("Error al subir imágenes:", error);
+      res.status(500).json({
+        message: "Error al subir imágenes",
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  }
+);
 
 module.exports = router;

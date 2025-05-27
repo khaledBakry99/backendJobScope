@@ -3,6 +3,7 @@ const cors = require("cors");
 const morgan = require("morgan");
 const helmet = require("helmet");
 const dotenv = require("dotenv");
+const path = require("path");
 
 // تحميل متغيرات البيئة
 dotenv.config();
@@ -97,8 +98,68 @@ app.use(express.json({ limit: "50mb" })); // تحليل JSON
 app.use(express.urlencoded({ extended: true, limit: "50mb" })); // تحليل بيانات النموذج
 app.use(morgan("dev")); // تسجيل الطلبات
 
-// لم تعد هناك حاجة لمجلد uploads لأن الصور تُحفظ كـ Base64 في قاعدة البيانات
-console.log("الصور تُحفظ الآن كـ Base64 في قاعدة البيانات - لا حاجة لمجلد uploads");
+// تكوين المجلد الثابت للملفات المحملة
+const uploadsPath = path.join(__dirname, "../uploads");
+console.log("Serving uploads from:", uploadsPath);
+
+// إضافة رؤوس CORS للملفات المحملة
+app.use(
+  "/uploads",
+  (req, res, next) => {
+    const allowedOrigins = [
+      "http://localhost:3000",
+      "https://jobscope-8t58.onrender.com",
+      "http://localhost:5173",
+      "https://cinemaity.cinemaity.com",
+    ];
+    const origin = req.headers.origin;
+
+    if (allowedOrigins.includes(origin)) {
+      res.header("Access-Control-Allow-Origin", origin);
+    } else {
+      res.header("Access-Control-Allow-Origin", "*");
+    }
+
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    );
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Cross-Origin-Resource-Policy", "cross-origin");
+    res.header("Cross-Origin-Embedder-Policy", "credentialless");
+    res.header("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+
+    // معالجة طلبات OPTIONS
+    if (req.method === "OPTIONS") {
+      return res.status(204).end();
+    }
+
+    // معالجة الخطأ
+    try {
+      next();
+    } catch (error) {
+      console.error("Error serving static file:", error);
+      res.status(404).send("File not found");
+    }
+  },
+  express.static(uploadsPath, {
+    fallthrough: false, // إرجاع خطأ 404 بدلاً من الاستمرار
+    setHeaders: (res, path) => {
+      res.set("Cache-Control", "public, max-age=31536000"); // تخزين مؤقت لمدة سنة
+
+      // No establecemos Access-Control-Allow-Origin aquí porque ya lo hicimos en el middleware anterior
+      res.set("Cross-Origin-Resource-Policy", "cross-origin");
+    },
+  })
+);
+
+// التأكد من وجود مجلد التحميل
+const fs = require("fs");
+if (!fs.existsSync(uploadsPath)) {
+  console.log("Creating uploads directory");
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
 
 // مسارات API
 app.use("/api/auth", require("./routes/auth.routes"));
@@ -111,7 +172,6 @@ app.use("/api/reviews", require("./routes/review.routes"));
 app.use("/api/map", require("./routes/map.routes"));
 app.use("/api/requests", require("./routes/request.routes"));
 app.use("/api/working-hours", require("./routes/workingHours.routes"));
-app.use("/api/site-settings", require("./routes/siteSettings.routes"));
 
 // مسار الاختبار
 app.get("/", (_req, res) => {

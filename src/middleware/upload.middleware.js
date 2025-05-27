@@ -2,8 +2,27 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// استخدام الذاكرة بدلاً من حفظ الملفات في مجلد
-const storage = multer.memoryStorage();
+// Configurar almacenamiento
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Usar ruta absoluta para el directorio de uploads
+    const uploadDir = path.join(process.cwd(), 'uploads');
+
+    // Crear directorio si no existe
+    if (!fs.existsSync(uploadDir)) {
+      console.log("Creating uploads directory from middleware:", uploadDir);
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Generar nombre único para el archivo
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  }
+});
 
 // Filtrar archivos por tipo
 const fileFilter = (req, file, cb) => {

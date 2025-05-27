@@ -1,7 +1,7 @@
 const express = require('express');
 const { check } = require('express-validator');
 const reviewController = require('../controllers/review.controller');
-const { protect } = require('../middleware/auth.middleware');
+const { protect, authorize } = require('../middleware/auth.middleware');
 const { uploadMultipleImages } = require('../middleware/upload.middleware');
 
 const router = express.Router();
@@ -44,40 +44,18 @@ router.post(
 // Rutas protegidas (requieren autenticación)
 router.use(protect);
 
-// Subir imágenes para una reseña (مباشرة إلى Base64)
+// Subir imágenes para una reseña
 router.post(
   '/upload-images',
+  authorize('client'),
   uploadMultipleImages('reviewImages', 3),
   (req, res) => {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'No se han subido imágenes' });
     }
 
-    try {
-      const imageBase64Array = [];
-
-      for (const file of req.files) {
-        try {
-          // تحويل الملف إلى Base64 مباشرة من buffer
-          const base64String = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-
-          imageBase64Array.push(base64String);
-
-          console.log("تم تحويل صورة تقييم إلى Base64 مباشرة:", {
-            originalName: file.originalname,
-            size: file.size,
-            base64Length: base64String.length
-          });
-        } catch (fileError) {
-          console.error("خطأ في معالجة ملف التقييم:", file.originalname, fileError);
-        }
-      }
-
-      res.json({ imageUrls: imageBase64Array });
-    } catch (error) {
-      console.error("خطأ في تحويل صور التقييم:", error);
-      res.status(500).json({ message: 'خطأ في معالجة الصور' });
-    }
+    const imageUrls = req.files.map(file => `/uploads/${file.filename}`);
+    res.json({ imageUrls });
   }
 );
 

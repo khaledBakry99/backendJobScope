@@ -1,7 +1,7 @@
 const express = require("express");
 const { check } = require("express-validator");
 const bookingController = require("../controllers/booking.controller");
-const { protect } = require("../middleware/auth.middleware");
+const { protect, authorize } = require("../middleware/auth.middleware");
 
 const router = express.Router();
 
@@ -11,6 +11,7 @@ router.use(protect);
 // Crear una nueva reserva (solo clientes)
 router.post(
   "/",
+  authorize("client"),
   [
     check("craftsmanId", "El ID del artesano es obligatorio")
       .not()
@@ -51,10 +52,18 @@ router.put(
 );
 
 // Confirmar una reserva y enviarla inmediatamente
-router.patch("/:id/confirm", bookingController.confirmBooking);
+router.patch(
+  "/:id/confirm",
+  authorize("client"),
+  bookingController.confirmBooking
+);
 
 // تحديث الطلبات المنتهية (للمسؤولين فقط)
-router.post("/process-expired", bookingController.processExpiredBookings);
+router.post(
+  "/process-expired",
+  authorize("admin"),
+  bookingController.processExpiredBookings
+);
 
 // إلغاء الطلبات المنتهية الصلاحية تلقائياً
 router.post("/cancel-expired", bookingController.cancelExpiredBookingsEndpoint);
@@ -62,6 +71,7 @@ router.post("/cancel-expired", bookingController.cancelExpiredBookingsEndpoint);
 // Editar una reserva (solo dentro de los primeros 5 minutos)
 router.put(
   "/:id",
+  authorize("client"),
   [
     check("date", "La fecha debe ser válida").optional(),
     check("time", "La hora debe ser válida").optional(),

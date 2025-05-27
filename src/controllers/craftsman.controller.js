@@ -618,7 +618,78 @@ exports.updateCraftsmanProfile = asyncHandler(async (req, res) => {
   res.json(craftsmanObj);
 });
 
-// تم حذف دالة updateWorkGallery - سيتم استبدالها بطريقة جديدة
+// Actualizar galería de trabajos
+exports.updateWorkGallery = asyncHandler(async (req, res) => {
+  // Verificar errores de validación
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { workGallery } = req.body;
+
+  console.log("Solicitud de actualización de galería recibida:", {
+    userId: req.user.id || req.user._id,
+    workGalleryLength: workGallery ? workGallery.length : 0,
+  });
+
+  // Buscar perfil de artesano
+  let craftsman = await Craftsman.findOne({ user: req.user._id });
+
+  if (!craftsman) {
+    console.log(
+      "Perfil de artesano no encontrado con user._id, intentando con user.id"
+    );
+    craftsman = await Craftsman.findOne({ user: req.user.id });
+
+    if (!craftsman) {
+      console.log("Perfil de artesano no encontrado con ningún ID");
+      return res
+        .status(404)
+        .json({ message: "Perfil de artesano no encontrado" });
+    }
+  }
+
+  // Filtrar URLs vacías o inválidas
+  const validGallery = Array.isArray(workGallery)
+    ? workGallery.filter((url) => url && url !== "undefined" && url !== "null")
+    : [];
+
+  console.log("Galería filtrada:", {
+    original: workGallery ? workGallery.length : 0,
+    filtered: validGallery.length,
+  });
+
+  // Actualizar galería
+  craftsman.workGallery = validGallery;
+  await craftsman.save();
+
+  console.log("Galería actualizada con éxito:", {
+    craftsmanId: craftsman._id,
+    gallerySize: craftsman.workGallery.length,
+  });
+
+  // تحويل البيانات إلى كائن عادي للتعديل
+  const craftsmanObj = craftsman.toObject();
+
+  // إضافة حقل الصورة من بيانات المستخدم إذا كانت متوفرة
+  if (
+    craftsmanObj.user &&
+    craftsmanObj.user.profilePicture &&
+    craftsmanObj.user.profilePicture !== ""
+  ) {
+    craftsmanObj.image = craftsmanObj.user.profilePicture;
+  } else {
+    // استخدام صورة افتراضية إذا لم تكن هناك صورة
+    craftsmanObj.image = "/img/user-avatar.svg";
+  }
+
+  // إضافة معرض الأعمال للاستجابة بكلا الاسمين للتوافق
+  craftsmanObj.gallery = craftsman.workGallery;
+  craftsmanObj.workGallery = craftsman.workGallery;
+
+  res.json(craftsmanObj);
+});
 
 // Actualizar disponibilidad
 exports.updateAvailability = asyncHandler(async (req, res) => {
@@ -667,7 +738,78 @@ exports.getStreetsInWorkRange = asyncHandler(async (req, res) => {
   res.json(data);
 });
 
-// تم حذف دالة getCraftsmanGallery - سيتم استبدالها بطريقة جديدة
+// الحصول على معرض أعمال الحرفي
+exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
+  // يمكن أن يكون المعرف هو معرف المستخدم أو معرف الحرفي
+  let craftsman;
+
+  try {
+    console.log("طلب الحصول على معرض الأعمال للحرفي:", {
+      id: req.params.id,
+      path: req.originalUrl,
+    });
+
+    // أولاً نحاول البحث باستخدام معرف الحرفي
+    craftsman = await Craftsman.findById(req.params.id);
+
+    if (craftsman) {
+      console.log("تم العثور على الحرفي باستخدام معرف الحرفي");
+    } else {
+      console.log(
+        "لم يتم العثور على الحرفي باستخدام معرف الحرفي، محاولة البحث باستخدام معرف المستخدم"
+      );
+      // إذا لم نجد الحرفي، نحاول البحث باستخدام معرف المستخدم
+      craftsman = await Craftsman.findOne({ user: req.params.id });
+    }
+
+    if (!craftsman) {
+      console.log("لم يتم العثور على الحرفي باستخدام أي من المعرفات");
+      return res.status(404).json({ message: "Artesano no encontrado" });
+    }
+
+    // طباعة معلومات التصحيح
+    console.log("تم العثور على الحرفي في getCraftsmanGallery:", {
+      id: craftsman._id,
+      userId: craftsman.user,
+      workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0,
+    });
+
+    // تصفية أي مسارات فارغة أو غير صالحة
+    const validGallery = Array.isArray(craftsman.workGallery)
+      ? craftsman.workGallery.filter(
+          (url) => url && url !== "undefined" && url !== "null"
+        )
+      : [];
+
+    console.log("معرض الصور بعد التصفية:", {
+      original: craftsman.workGallery ? craftsman.workGallery.length : 0,
+      filtered: validGallery.length,
+    });
+
+    // إذا كان هناك اختلاف بين المعرض الأصلي والمعرض المصفى، قم بتحديث المعرض في قاعدة البيانات
+    if (
+      validGallery.length !==
+      (craftsman.workGallery ? craftsman.workGallery.length : 0)
+    ) {
+      console.log("تحديث معرض الصور في قاعدة البيانات بعد التصفية");
+      craftsman.workGallery = validGallery;
+      await craftsman.save();
+    }
+
+    // إرجاع معرض الأعمال مع دعم الاسمين (gallery و workGallery) للتوافق
+    res.json({
+      gallery: validGallery,
+      workGallery: validGallery,
+    });
+  } catch (error) {
+    console.error("خطأ في الحصول على معرض الأعمال:", error);
+    res.status(500).json({
+      message: "Error al obtener la galería",
+      error: error.message,
+      stack: error.stack,
+    });
+  }
+});
 
 // تحديث الشوارع ضمن نطاق عمل الحرفي
 exports.updateStreetsInWorkRange = asyncHandler(async (req, res) => {
