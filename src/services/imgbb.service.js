@@ -3,8 +3,16 @@ const FormData = require('form-data');
 
 class ImgBBService {
   constructor() {
-    this.apiKey = 'f34117eed7981fb377ebcfd3621871e5';
+    // استخدام متغير البيئة أولاً، ثم القيمة الافتراضية
+    this.apiKey = process.env.IMGBB_API_KEY || 'f34117eed7981fb377ebcfd3621871e5';
     this.baseUrl = 'https://api.imgbb.com/1/upload';
+
+    // التحقق من وجود API Key
+    if (!this.apiKey) {
+      console.error('ImgBB API Key غير موجود! يرجى إضافة IMGBB_API_KEY في متغيرات البيئة');
+    } else {
+      console.log('ImgBB Service تم تهيئته بنجاح مع API Key');
+    }
   }
 
   /**
@@ -27,7 +35,7 @@ class ImgBBService {
       const formData = new FormData();
       formData.append('key', this.apiKey);
       formData.append('image', base64Image);
-      
+
       if (imageName) {
         formData.append('name', imageName);
       }
@@ -36,13 +44,17 @@ class ImgBBService {
       const response = await axios.post(this.baseUrl, formData, {
         headers: {
           ...formData.getHeaders(),
+          'User-Agent': 'JobScope-Backend/1.0',
+          'Accept': 'application/json',
         },
         timeout: 30000, // 30 ثانية timeout
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
       });
 
       if (response.data && response.data.success) {
         const imageData = response.data.data;
-        
+
         console.log('ImgBB - تم رفع الصورة بنجاح:', {
           id: imageData.id,
           url: imageData.url,
@@ -67,7 +79,7 @@ class ImgBBService {
       }
     } catch (error) {
       console.error('ImgBB - خطأ في رفع الصورة:', error.message);
-      
+
       if (error.response) {
         console.error('ImgBB - تفاصيل الخطأ:', {
           status: error.response.status,
@@ -97,7 +109,7 @@ class ImgBBService {
       });
 
       const results = await Promise.allSettled(uploadPromises);
-      
+
       const successfulUploads = [];
       const failedUploads = [];
 
@@ -137,7 +149,7 @@ class ImgBBService {
     // ImgBB لا يدعم حذف الصور عبر API
     // لذلك سنقوم بحذف الرابط من قاعدة البيانات فقط
     console.log('ImgBB - تحذير: لا يمكن حذف الصور من ImgBB عبر API');
-    
+
     return {
       success: true,
       message: 'تم حذف الرابط من قاعدة البيانات (الصورة تبقى على ImgBB)',
@@ -183,7 +195,7 @@ class ImgBBService {
     try {
       const url = new URL(imageUrl);
       const pathParts = url.pathname.split('/');
-      
+
       // البحث عن معرف الصورة في المسار
       for (let i = 0; i < pathParts.length; i++) {
         const part = pathParts[i];
@@ -191,7 +203,7 @@ class ImgBBService {
           return part.split('.')[0]; // إزالة امتداد الملف
         }
       }
-      
+
       return null;
     } catch (error) {
       console.error('خطأ في استخراج معرف الصورة:', error.message);
