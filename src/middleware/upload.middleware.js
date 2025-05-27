@@ -15,10 +15,9 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Configurar límites محسنة للأداء
+// Configurar límites
 const limits = {
-  fileSize: 10 * 1024 * 1024, // 10MB (زيادة الحد لجودة أفضل)
-  files: 10, // حد أقصى 10 ملفات
+  fileSize: 5 * 1024 * 1024, // 5MB
 };
 
 // Crear middleware de multer

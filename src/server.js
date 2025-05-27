@@ -112,7 +112,6 @@ app.use("/api/map", require("./routes/map.routes"));
 app.use("/api/requests", require("./routes/request.routes"));
 app.use("/api/working-hours", require("./routes/workingHours.routes"));
 app.use("/api/site-settings", require("./routes/siteSettings.routes"));
-// Image API مدمج في craftsmen routes - لا حاجة لملف منفصل
 
 // مسار الاختبار
 app.get("/", (_req, res) => {
