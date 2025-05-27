@@ -26,6 +26,18 @@ router.get("/:id/gallery", async (req, res) => {
       craftsmanId: craftsmanId,
     });
 
+    // التأكد من أن المعرف ليس "me"
+    if (craftsmanId === "me") {
+      return res.status(400).json({
+        success: false,
+        message: "استخدم /me/gallery للحصول على معرضك الشخصي",
+        data: {
+          gallery: [],
+          workGallery: [],
+        },
+      });
+    }
+
     // البحث عن الحرفي بمعرف الحرفي أو معرف المستخدم
     let craftsman = await Craftsman.findById(craftsmanId);
 
