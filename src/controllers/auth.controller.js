@@ -419,22 +419,8 @@ const sendOTPByEmail = async (email, otp) => {
   }
 };
 
-// إرسال رمز التحقق عبر رسالة نصية
-const sendOTPBySMS = async (phone, otp) => {
-  try {
-    // هنا يمكنك استخدام خدمة إرسال الرسائل النصية المفضلة لديك
-    // مثال: Twilio, Vonage, MessageBird, إلخ.
-
-    // في هذا المثال، سنقوم فقط بتسجيل الرمز في وحدة التحكم
-    console.log(`Sending OTP ${otp} to phone ${phone}`);
-
-    // محاكاة نجاح إرسال الرسالة
-    return true;
-  } catch (error) {
-    console.error("Error sending SMS:", error);
-    return false;
-  }
-};
+// استيراد خدمة SMS
+const { sendOTPSMS } = require("../services/smsService");
 
 // إرسال رمز التحقق إلى البريد الإلكتروني
 exports.sendOtpToEmail = asyncHandler(async (req, res) => {
@@ -480,17 +466,24 @@ exports.sendOtpToPhone = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "رقم الهاتف مطلوب" });
   }
 
-  // التحقق من صحة رقم الهاتف (سوري أو أمريكي)
-  if (phone.startsWith("+1") || phone.startsWith("1")) {
-    // التحقق من رقم الهاتف الأمريكي
-    // يجب أن يتكون من 10 أرقام (منطقة 3 أرقام + 7 أرقام) بعد رمز الدولة
-    const phoneWithoutCode = phone.replace(/^\+?1/, "").trim();
-    if (!/^\d{10}$/.test(phoneWithoutCode)) {
-      return res.status(400).json({ message: "رقم الهاتف الأمريكي غير صالح" });
-    }
-  } else if (!/^(\+?963|0)?9\d{8}$/.test(phone)) {
-    // التحقق من رقم الهاتف السوري
-    return res.status(400).json({ message: "رقم الهاتف غير صالح" });
+  // التحقق من صحة رقم الهاتف (سوري، سعودي، أو أمريكي)
+  const phoneRegex = {
+    // أرقام سورية
+    syria: /^(\+?963|0)?9\d{8}$/,
+    // أرقام سعودية
+    saudi: /^(\+?966|0)?5\d{8}$/,
+    // أرقام أمريكية
+    usa: /^(\+?1)?\d{10}$/
+  };
+
+  const isSyrianPhone = phoneRegex.syria.test(phone);
+  const isSaudiPhone = phoneRegex.saudi.test(phone);
+  const isUSAPhone = phoneRegex.usa.test(phone);
+
+  if (!isSyrianPhone && !isSaudiPhone && !isUSAPhone) {
+    return res.status(400).json({
+      message: "رقم الهاتف غير صالح. يرجى إدخال رقم سوري أو سعودي أو أمريكي صحيح"
+    });
   }
 
   // توليد رمز التحقق
@@ -501,7 +494,7 @@ exports.sendOtpToPhone = asyncHandler(async (req, res) => {
   await OTP.create({ identifier: phone, otp });
 
   // إرسال رمز التحقق عبر رسالة نصية
-  const sent = await sendOTPBySMS(phone, otp);
+  const sent = await sendOTPSMS(phone, otp);
 
   if (sent) {
     res.json({
