@@ -64,4 +64,13 @@ router.post("/verify-otp", authController.verifyOtp);
 // تسجيل مستخدم تم إنشاؤه باستخدام Firebase
 router.post("/register-firebase", authController.registerFirebaseUser);
 
+// اختبار اتصال خدمة الرسائل النصية
+router.get("/test-sms", authController.testSMSConnection);
+
+// إرسال رسالة اختبار
+router.post("/send-test-sms", authController.sendTestSMS);
+
+// الحصول على رصيد الحساب
+router.get("/sms-balance", authController.getSMSBalance);
+
 module.exports = router;

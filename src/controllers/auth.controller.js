@@ -419,8 +419,29 @@ const sendOTPByEmail = async (email, otp) => {
   }
 };
 
-// استيراد خدمة SMS
-const { sendOTPSMS } = require("../services/smsService");
+// استيراد خدمة HyperSender
+const hyperSenderService = require('../services/hyperSenderService');
+
+// إرسال رمز التحقق عبر رسالة نصية
+const sendOTPBySMS = async (phone, otp) => {
+  try {
+    console.log(`Sending OTP ${otp} to phone ${phone} via HyperSender`);
+
+    // إرسال رمز التحقق باستخدام HyperSender
+    const result = await hyperSenderService.sendOTP(phone, otp);
+
+    if (result.success) {
+      console.log(`SMS sent successfully to ${phone}. Message ID: ${result.messageId}`);
+      return true;
+    } else {
+      console.error(`Failed to send SMS to ${phone}:`, result.error);
+      return false;
+    }
+  } catch (error) {
+    console.error("Error sending SMS:", error);
+    return false;
+  }
+};
 
 // إرسال رمز التحقق إلى البريد الإلكتروني
 exports.sendOtpToEmail = asyncHandler(async (req, res) => {
@@ -466,24 +487,17 @@ exports.sendOtpToPhone = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "رقم الهاتف مطلوب" });
   }
 
-  // التحقق من صحة رقم الهاتف (سوري، سعودي، أو أمريكي)
-  const phoneRegex = {
-    // أرقام سورية
-    syria: /^(\+?963|0)?9\d{8}$/,
-    // أرقام سعودية
-    saudi: /^(\+?966|0)?5\d{8}$/,
-    // أرقام أمريكية
-    usa: /^(\+?1)?\d{10}$/
-  };
-
-  const isSyrianPhone = phoneRegex.syria.test(phone);
-  const isSaudiPhone = phoneRegex.saudi.test(phone);
-  const isUSAPhone = phoneRegex.usa.test(phone);
-
-  if (!isSyrianPhone && !isSaudiPhone && !isUSAPhone) {
-    return res.status(400).json({
-      message: "رقم الهاتف غير صالح. يرجى إدخال رقم سوري أو سعودي أو أمريكي صحيح"
-    });
+  // التحقق من صحة رقم الهاتف (سوري أو أمريكي)
+  if (phone.startsWith("+1") || phone.startsWith("1")) {
+    // التحقق من رقم الهاتف الأمريكي
+    // يجب أن يتكون من 10 أرقام (منطقة 3 أرقام + 7 أرقام) بعد رمز الدولة
+    const phoneWithoutCode = phone.replace(/^\+?1/, "").trim();
+    if (!/^\d{10}$/.test(phoneWithoutCode)) {
+      return res.status(400).json({ message: "رقم الهاتف الأمريكي غير صالح" });
+    }
+  } else if (!/^(\+?963|0)?9\d{8}$/.test(phone)) {
+    // التحقق من رقم الهاتف السوري
+    return res.status(400).json({ message: "رقم الهاتف غير صالح" });
   }
 
   // توليد رمز التحقق
@@ -494,7 +508,7 @@ exports.sendOtpToPhone = asyncHandler(async (req, res) => {
   await OTP.create({ identifier: phone, otp });
 
   // إرسال رمز التحقق عبر رسالة نصية
-  const sent = await sendOTPSMS(phone, otp);
+  const sent = await sendOTPBySMS(phone, otp);
 
   if (sent) {
     res.json({
@@ -753,4 +767,91 @@ exports.adminLogin = asyncHandler(async (req, res) => {
     isAuthenticated: true,
     expiresIn,
   });
+});
+
+// اختبار اتصال HyperSender SMS
+exports.testSMSConnection = asyncHandler(async (req, res) => {
+  try {
+    console.log("Testing HyperSender SMS connection...");
+
+    const testResult = await hyperSenderService.testConnection();
+
+    res.json({
+      success: testResult.success,
+      message: testResult.message,
+      result: testResult.result || testResult.error,
+      config: {
+        apiToken: testResult.apiToken,
+        apiUrl: testResult.apiUrl,
+        senderId: testResult.senderId
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Error testing SMS connection:", error);
+    res.status(500).json({
+      success: false,
+      message: "فشل في اختبار اتصال خدمة الرسائل النصية",
+      error: error.message
+    });
+  }
+});
+
+// إرسال رسالة اختبار لرقم حقيقي
+exports.sendTestSMS = asyncHandler(async (req, res) => {
+  try {
+    const { phone, message } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: "رقم الهاتف مطلوب"
+      });
+    }
+
+    const testMessage = message || `اختبار من JobScope - ${new Date().toLocaleString('ar-SY')}`;
+
+    console.log(`Sending test SMS to ${phone}: ${testMessage}`);
+
+    const result = await hyperSenderService.sendSMS(phone, testMessage);
+
+    res.json({
+      success: result.success,
+      message: result.success ? "تم إرسال الرسالة الاختبارية بنجاح" : "فشل في إرسال الرسالة الاختبارية",
+      result: result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Error sending test SMS:", error);
+    res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء إرسال الرسالة الاختبارية",
+      error: error.message
+    });
+  }
+});
+
+// الحصول على رصيد الحساب
+exports.getSMSBalance = asyncHandler(async (req, res) => {
+  try {
+    console.log("Getting SMS account balance...");
+
+    const balanceResult = await hyperSenderService.getAccountBalance();
+
+    res.json({
+      success: balanceResult.success,
+      balance: balanceResult.balance,
+      currency: balanceResult.currency,
+      message: balanceResult.success ? "تم الحصول على الرصيد بنجاح" : "فشل في الحصول على الرصيد",
+      error: balanceResult.error,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Error getting SMS balance:", error);
+    res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء الحصول على رصيد الحساب",
+      error: error.message
+    });
+  }
 });
