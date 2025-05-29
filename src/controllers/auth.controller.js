@@ -371,9 +371,9 @@ exports.checkPhoneExists = asyncHandler(async (req, res) => {
   res.json({ exists: !!user });
 });
 
-// توليد رمز تحقق من 6 أرقام
+// توليد رمز تحقق من 4 أرقام فقط
 const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return Math.floor(1000 + Math.random() * 9000).toString();
 };
 
 // إرسال رمز التحقق عبر البريد الإلكتروني
@@ -422,19 +422,35 @@ const sendOTPByEmail = async (email, otp) => {
 // استيراد خدمة HyperSender
 const hyperSenderService = require('../services/hyperSenderService');
 
-// إرسال رمز التحقق عبر رسالة نصية
+// إرسال رمز التحقق عبر رسالة نصية باستخدام HyperSender
 const sendOTPBySMS = async (phone, otp) => {
   try {
     console.log(`Sending OTP ${otp} to phone ${phone} via HyperSender`);
-
-    // إرسال رمز التحقق باستخدام HyperSender
-    const result = await hyperSenderService.sendOTP(phone, otp);
-
-    if (result.success) {
-      console.log(`SMS sent successfully to ${phone}. Message ID: ${result.messageId}`);
-      return true;
-    } else {
-      console.error(`Failed to send SMS to ${phone}:`, result.error);
+    // إرسال رمز التحقق باستخدام HyperSender (API Token مباشر)
+    const axios = require('axios');
+    const apiToken = "250|e2Lq3UqTPIzYJBYhdJviP1Zb066RBHuOCWtkj5eY90306903";
+    const apiUrl = "https://api.hypersender.net/v1/messages";
+    const formattedPhone = phone.startsWith('+') ? phone : '+963' + phone.replace(/^0/, '');
+    const message = `رمز التحقق الخاص بك في JobScope هو: ${otp}`;
+    const data = {
+      to: formattedPhone,
+      type: "whatsapp",
+      message: message
+    };
+    const headers = {
+      Authorization: `Bearer ${apiToken}`,
+      'Content-Type': 'application/json'
+    };
+    try {
+      const response = await axios.post(apiUrl, data, { headers });
+      if (response.data && response.data.status === 'success') {
+        return true;
+      } else {
+        console.error('HyperSender response:', response.data);
+        return false;
+      }
+    } catch (err) {
+      console.error('HyperSender error:', err.response ? err.response.data : err.message);
       return false;
     }
   } catch (error) {
