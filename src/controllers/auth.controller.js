@@ -422,20 +422,22 @@ const sendOTPByEmail = async (email, otp) => {
 // استيراد خدمة HyperSender
 const hyperSenderService = require('../services/hyperSenderService');
 
-// إرسال رمز التحقق عبر رسالة نصية باستخدام HyperSender
+// إرسال رمز التحقق عبر رسالة واتساب باستخدام Hypersender API الجديد
 const sendOTPBySMS = async (phone, otp) => {
   try {
-    console.log(`Sending OTP ${otp} to phone ${phone} via HyperSender`);
-    // إرسال رمز التحقق باستخدام HyperSender (API Token مباشر)
+    console.log(`Sending OTP ${otp} to phone ${phone} via Hypersender WhatsApp API`);
     const axios = require('axios');
     const apiToken = "250|e2Lq3UqTPIzYJBYhdJviP1Zb066RBHuOCWtkj5eY90306903";
-    const apiUrl = "https://api.hypersender.net/v1/messages";
-    const formattedPhone = phone.startsWith('+') ? phone : '+963' + phone.replace(/^0/, '');
+    const instanceId = "9f07891d-21c4-42cd-9c7e-9e350170cf91"; // غيّرها إذا تغيرت
+    const apiUrl = `https://app.hypersender.com/api/whatsapp/v1/${instanceId}/send-text-safe`;
+    // إزالة + إن وجدت، والتأكد من أن الرقم دولي فقط
+    let phoneDigits = phone.startsWith('+') ? phone.slice(1) : phone;
+    if (phoneDigits.startsWith('0')) phoneDigits = '963' + phoneDigits.slice(1);
+    const chatId = `${phoneDigits}@s.whatsapp.net`;
     const message = `رمز التحقق الخاص بك في JobScope هو: ${otp}`;
     const data = {
-      to: formattedPhone,
-      type: "whatsapp",
-      message: message
+      chatId: chatId,
+      text: message
     };
     const headers = {
       Authorization: `Bearer ${apiToken}`,
@@ -443,18 +445,19 @@ const sendOTPBySMS = async (phone, otp) => {
     };
     try {
       const response = await axios.post(apiUrl, data, { headers });
-      if (response.data && response.data.status === 'success') {
+      if (response.data && response.status === 201) {
+        console.log('تم إرسال الرسالة بنجاح:', response.data);
         return true;
       } else {
-        console.error('HyperSender response:', response.data);
+        console.error('تفاصيل رد Hypersender:', response.data);
         return false;
       }
     } catch (err) {
-      console.error('HyperSender error:', err.response ? err.response.data : err.message);
+      console.error('خطأ من Hypersender:', err.response ? err.response.data : err.message);
       return false;
     }
   } catch (error) {
-    console.error("Error sending SMS:", error);
+    console.error("خطأ غير متوقع أثناء إرسال رمز التحقق:", error);
     return false;
   }
 };
