@@ -542,7 +542,7 @@ exports.sendOtpToPhone = asyncHandler(async (req, res) => {
   }
 });
 
-// التحقق من صحة رمز التحقق
+// التحقق من صحة رمز التحقق (أكثر مرونة في مطابقة رقم الهاتف)
 exports.verifyOtp = asyncHandler(async (req, res) => {
   const { email, phone, otp } = req.body;
 
@@ -556,10 +556,34 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
       .json({ message: "البريد الإلكتروني أو رقم الهاتف مطلوب" });
   }
 
-  const identifier = email || phone;
+  // توحيد صيغ رقم الهاتف للبحث
+  function normalizePhone(p) {
+    if (!p) return '';
+    let phoneDigits = p.replace(/[^\d]/g, ''); // أرقام فقط
+    if (phoneDigits.startsWith('963')) return phoneDigits;
+    if (phoneDigits.startsWith('0')) return '963' + phoneDigits.slice(1);
+    if (phoneDigits.length === 9 && phoneDigits.startsWith('9')) return '963' + phoneDigits;
+    return phoneDigits;
+  }
+
+  let possiblePhones = [];
+  if (phone) {
+    const norm = normalizePhone(phone);
+    possiblePhones = [
+      phone,
+      norm,
+      norm.startsWith('963') ? '0' + norm.slice(3) : '',
+      norm.startsWith('963') ? '+' + norm : '',
+    ].filter(Boolean);
+  }
 
   // البحث عن رمز التحقق في قاعدة البيانات
-  const otpRecord = await OTP.findOne({ identifier, otp });
+  let otpRecord = null;
+  if (email) {
+    otpRecord = await OTP.findOne({ identifier: email, otp });
+  } else if (possiblePhones.length) {
+    otpRecord = await OTP.findOne({ identifier: { $in: possiblePhones }, otp });
+  }
 
   if (!otpRecord) {
     return res.status(400).json({
