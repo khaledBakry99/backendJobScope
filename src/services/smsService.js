@@ -3,12 +3,25 @@ const twilio = require("twilio");
 // إعدادات Twilio
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
+const apiKeySid = process.env.TWILIO_API_KEY_SID;
+const apiKeySecret = process.env.TWILIO_API_KEY_SECRET;
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
 
 // إنشاء عميل Twilio
 let client = null;
-if (accountSid && authToken) {
-  client = twilio(accountSid, authToken);
+try {
+  if (apiKeySid && apiKeySecret && accountSid) {
+    // استخدام API Key
+    client = twilio(apiKeySid, apiKeySecret, { accountSid: accountSid });
+  } else if (accountSid && authToken) {
+    // استخدام Account SID و Auth Token
+    client = twilio(accountSid, authToken);
+  } else {
+    console.log('Twilio credentials not configured properly');
+  }
+} catch (error) {
+  console.log('Twilio initialization failed:', error.message);
+  client = null;
 }
 
 /**
