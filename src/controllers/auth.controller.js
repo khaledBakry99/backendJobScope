@@ -217,12 +217,16 @@ exports.login = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { email, password, rememberMe } = req.body;
+  const { email, phone, password, rememberMe } = req.body;
 
-  // البحث عن المستخدم عن طريق البريد الإلكتروني أو رقم الهاتف
-  const user = await User.findOne({
-    $or: [{ email }, { phone: email }],
-  });
+  let user;
+  if (email) {
+    user = await User.findOne({ email });
+  } else if (phone) {
+    user = await User.findOne({ phone });
+  } else {
+    return res.status(400).json({ message: "يرجى إدخال البريد الإلكتروني أو رقم الهاتف" });
+  }
 
   if (!user) {
     return res.status(401).json({ message: "بيانات الاعتماد غير صالحة" });
@@ -371,9 +375,9 @@ exports.checkPhoneExists = asyncHandler(async (req, res) => {
   res.json({ exists: !!user });
 });
 
-// توليد رمز تحقق من 4 أرقام فقط
+// توليد رمز تحقق من 6 أرقام
 const generateOTP = () => {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+  return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 // إرسال رمز التحقق عبر البريد الإلكتروني
