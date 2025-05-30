@@ -3,19 +3,7 @@ const { check } = require("express-validator");
 const authController = require("../controllers/auth.controller");
 const { protect } = require("../middleware/auth.middleware");
 
-console.log("تم تحميل ملف auth.routes.js");
-
 const router = express.Router();
-
-// تسجيل الدخول
-router.post(
-  "/login",
-  (req, res, next) => {
-    console.log("وصل طلب POST /api/auth/login إلى الراوتر");
-    next();
-  },
-  authController.login
-);
 
 // تسجيل مستخدم جديد
 router.post(
