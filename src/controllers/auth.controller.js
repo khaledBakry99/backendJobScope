@@ -219,6 +219,9 @@ exports.login = asyncHandler(async (req, res) => {
 
   const { email, phone, password, rememberMe } = req.body;
 
+  // تعليمات طباعة عامة
+  console.log("تم استقبال طلب login في auth.controller.js");
+  console.log("محتوى req.body:", req.body);
   // تعليمات الطباعة للتشخيص
   console.log("\n--- محاولة تسجيل الدخول ---");
   console.log("البيانات المستلمة:", { email, phone, password });
