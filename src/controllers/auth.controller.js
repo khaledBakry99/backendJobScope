@@ -219,22 +219,34 @@ exports.login = asyncHandler(async (req, res) => {
 
   const { email, phone, password, rememberMe } = req.body;
 
+  // تعليمات الطباعة للتشخيص
+  console.log("\n--- محاولة تسجيل الدخول ---");
+  console.log("البيانات المستلمة:", { email, phone, password });
+
   let user;
   if (email) {
+    console.log("البحث عن المستخدم بالبريد:", email);
     user = await User.findOne({ email });
   } else if (phone) {
+    console.log("البحث عن المستخدم بالهاتف:", phone);
     user = await User.findOne({ phone });
   } else {
+    console.log("لم يتم إرسال بريد أو رقم هاتف");
     return res.status(400).json({ message: "يرجى إدخال البريد الإلكتروني أو رقم الهاتف" });
   }
 
+  console.log("نتيجة البحث عن المستخدم:", user);
+
   if (!user) {
+    console.log("لم يتم العثور على مستخدم مطابق");
     return res.status(401).json({ message: "بيانات الاعتماد غير صالحة" });
   }
 
   // التحقق من كلمة المرور
   const isMatch = await user.comparePassword(password);
+  console.log("نتيجة التحقق من كلمة المرور:", isMatch);
   if (!isMatch) {
+    console.log("كلمة المرور غير صحيحة");
     return res.status(401).json({ message: "بيانات الاعتماد غير صالحة" });
   }
 
