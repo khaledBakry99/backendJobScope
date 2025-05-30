@@ -3,6 +3,8 @@ const { check } = require("express-validator");
 const authController = require("../controllers/auth.controller");
 const { protect } = require("../middleware/auth.middleware");
 
+console.log("تم تحميل ملف auth.routes.js");
+
 const router = express.Router();
 
 // تسجيل مستخدم جديد
