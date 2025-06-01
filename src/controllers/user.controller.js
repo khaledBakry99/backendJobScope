@@ -131,7 +131,7 @@ exports.changePassword = asyncHandler(async (req, res) => {
   if (!errors.isEmpty()) {
     return res.status(400).json({
       message: "بيانات غير صحيحة",
-      errors: errors.array()
+      errors: errors.array(),
     });
   }
 
@@ -144,19 +144,36 @@ exports.changePassword = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "المستخدم غير موجود" });
   }
 
-  // Verificar contraseña actual
+  // التحقق من نوع المستخدم (Supabase أم عادي)
+  if (user.firebaseUid || user.supabaseUid) {
+    // مستخدم Supabase - نقوم بتحديث كلمة المرور مباشرة دون التحقق من كلمة المرور الحالية
+    // لأن كلمة المرور مشفرة بطريقة مختلفة في Supabase
+    console.log("تحديث كلمة المرور لمستخدم Supabase:", user.email);
+
+    // تحديث كلمة المرور مباشرة
+    user.password = newPassword;
+    await user.save();
+
+    return res.json({
+      message: "تم تغيير كلمة المرور بنجاح",
+      success: true,
+      isSupabaseUser: true,
+    });
+  }
+
+  // Verificar contraseña actual للمستخدمين العاديين فقط
   const isMatch = await user.comparePassword(currentPassword);
   if (!isMatch) {
     return res.status(401).json({ message: "كلمة المرور الحالية غير صحيحة" });
   }
 
-  // Actualizar contraseña
+  // Actualizar contraseña للمستخدمين العاديين
   user.password = newPassword;
   await user.save();
 
   res.json({
     message: "تم تغيير كلمة المرور بنجاح",
-    success: true
+    success: true,
   });
 });
 
@@ -184,7 +201,7 @@ exports.deleteMyAccount = asyncHandler(async (req, res) => {
 
   try {
     // Si es un artesano, también eliminar su perfil de artesano
-    if (user.userType === 'craftsman') {
+    if (user.userType === "craftsman") {
       await Craftsman.findOneAndDelete({ user: req.user._id });
     }
 
@@ -196,12 +213,12 @@ exports.deleteMyAccount = asyncHandler(async (req, res) => {
 
     res.json({
       message: "Cuenta eliminada permanentemente",
-      success: true
+      success: true,
     });
   } catch (error) {
     console.error("Error al eliminar cuenta:", error);
     res.status(500).json({
-      message: "Error interno del servidor al eliminar la cuenta"
+      message: "Error interno del servidor al eliminar la cuenta",
     });
   }
 });
