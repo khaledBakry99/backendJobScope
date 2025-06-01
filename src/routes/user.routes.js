@@ -26,8 +26,8 @@ router.put(
 router.put(
   '/change-password',
   [
-    check('currentPassword', 'La contraseña actual es obligatoria').not().isEmpty(),
-    check('newPassword', 'La nueva contraseña debe tener al menos 6 caracteres').isLength({ min: 6 }),
+    check('currentPassword', 'كلمة المرور الحالية مطلوبة').not().isEmpty(),
+    check('newPassword', 'كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل').isLength({ min: 6 }),
   ],
   userController.changePassword
 );
