@@ -161,8 +161,16 @@ if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
 }
 
+// إنشاء مجلد uploads/admin إذا لم يكن موجودًا
+const adminUploadsPath = path.join(uploadsPath, "admin");
+if (!fs.existsSync(adminUploadsPath)) {
+  console.log("Creating admin uploads directory");
+  fs.mkdirSync(adminUploadsPath, { recursive: true });
+}
+
 // مسارات API
 app.use("/api/auth", require("./routes/auth.routes"));
+app.use("/api/admin", require("./routes/admin.routes"));
 
 app.use("/api/users", require("./routes/user.routes"));
 app.use("/api/craftsmen", require("./routes/craftsman.routes"));

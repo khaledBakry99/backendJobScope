@@ -37,7 +37,9 @@ router.post(
   [
     check("email", "البريد الإلكتروني مطلوب").isEmail(),
     check("password", "كلمة المرور مطلوبة").isLength({ min: 6 }),
-    check("name", "الاسم مطلوب").not().isEmpty(),
+    check("name", "الاسم مطلوب")
+      .not()
+      .isEmpty(),
   ],
   authController.createAdminAccount
 );
@@ -59,8 +61,13 @@ router.put(
   "/admin/change-password",
   protect,
   [
-    check("currentPassword", "كلمة المرور الحالية مطلوبة").not().isEmpty(),
-    check("newPassword", "كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل").isLength({ min: 6 }),
+    check("currentPassword", "كلمة المرور الحالية مطلوبة")
+      .not()
+      .isEmpty(),
+    check(
+      "newPassword",
+      "كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل"
+    ).isLength({ min: 6 }),
   ],
   authController.changeAdminPassword
 );
