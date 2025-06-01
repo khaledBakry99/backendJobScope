@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
+const Admin = require("../models/Admin");
 
 // وسيط للتحقق من الرمز المميز JWT
 exports.protect = async (req, res, next) => {
@@ -27,8 +28,19 @@ exports.protect = async (req, res, next) => {
     // التحقق من الرمز المميز
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // البحث عن المستخدم
-    const user = await User.findById(decoded.id).select("-password");
+    // البحث عن المستخدم أو الأدمن بناءً على الدور
+    let user;
+
+    if (decoded.role === "admin") {
+      // البحث في Admin model
+      user = await Admin.findById(decoded.id).select("-password");
+      if (user) {
+        user.userType = "admin"; // إضافة userType للتوافق
+      }
+    } else {
+      // البحث في User model
+      user = await User.findById(decoded.id).select("-password");
+    }
 
     if (!user) {
       return res.status(401).json({
@@ -36,8 +48,8 @@ exports.protect = async (req, res, next) => {
       });
     }
 
-    // التحقق مما إذا كان المستخدم نشطًا
-    if (!user.isActive) {
+    // التحقق مما إذا كان المستخدم نشطًا (فقط للمستخدمين العاديين)
+    if (user.userType !== "admin" && !user.isActive) {
       return res.status(401).json({
         message: "تم تعطيل حسابك",
       });
