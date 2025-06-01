@@ -35,6 +35,9 @@ router.put(
 // Desactivar cuenta
 router.put('/deactivate', userController.deactivateAccount);
 
+// Eliminar cuenta permanentemente
+router.delete('/me', userController.deleteMyAccount);
+
 // Subir imagen de perfil
 router.post('/upload-profile-image', uploadSingleImage('profileImage'), (req, res) => {
   if (!req.file) {

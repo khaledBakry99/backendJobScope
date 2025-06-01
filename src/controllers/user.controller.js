@@ -168,6 +168,38 @@ exports.deactivateAccount = asyncHandler(async (req, res) => {
   res.json({ message: "Cuenta desactivada correctamente" });
 });
 
+// Eliminar cuenta permanentemente
+exports.deleteMyAccount = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return res.status(404).json({ message: "Usuario no encontrado" });
+  }
+
+  try {
+    // Si es un artesano, también eliminar su perfil de artesano
+    if (user.userType === 'craftsman') {
+      await Craftsman.findOneAndDelete({ user: req.user._id });
+    }
+
+    // Aquí se pueden agregar más eliminaciones de datos relacionados
+    // Por ejemplo: reservas, reseñas, notificaciones, etc.
+
+    // Eliminar el usuario de la base de datos
+    await User.findByIdAndDelete(req.user._id);
+
+    res.json({
+      message: "Cuenta eliminada permanentemente",
+      success: true
+    });
+  } catch (error) {
+    console.error("Error al eliminar cuenta:", error);
+    res.status(500).json({
+      message: "Error interno del servidor al eliminar la cuenta"
+    });
+  }
+});
+
 // [Admin] Actualizar usuario
 exports.adminUpdateUser = asyncHandler(async (req, res) => {
   // Verificar errores de validación

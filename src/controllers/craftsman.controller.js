@@ -87,15 +87,15 @@ exports.getCraftsmanById = asyncHandler(async (req, res) => {
 
   // إضافة workingHoursArray إذا كانت workingHours موجودة
   if (craftsmanObj.workingHours) {
-    // تحويل كائن ساعات العمل إلى مصفوفة، مع فلترة الأيام التي تم اختيارها فقط
-    const workingHoursArray = Object.entries(craftsmanObj.workingHours)
-      .filter(([_, data]) => data.isWorking) // فلترة الأيام التي تم اختيارها فقط
-      .map(([day, data]) => ({
+    // تحويل كائن ساعات العمل إلى مصفوفة، مع تضمين جميع الأيام
+    const workingHoursArray = Object.entries(craftsmanObj.workingHours).map(
+      ([day, data]) => ({
         day,
-        isWorking: true, // نضمن أن isWorking هو true دائمًا للأيام المفلترة
+        isWorking: !!data.isWorking, // الحفاظ على القيمة الحقيقية لـ isWorking
         start: data.start || "",
         end: data.end || "",
-      }));
+      })
+    );
 
     // إضافة مصفوفة ساعات العمل إلى الاستجابة
     craftsmanObj.workingHoursArray = workingHoursArray;
@@ -155,15 +155,15 @@ exports.getMyProfile = asyncHandler(async (req, res) => {
 
   // إضافة workingHoursArray إذا كانت workingHours موجودة
   if (craftsmanObj.workingHours) {
-    // تحويل كائن ساعات العمل إلى مصفوفة، مع فلترة الأيام التي تم اختيارها فقط
-    const workingHoursArray = Object.entries(craftsmanObj.workingHours)
-      .filter(([_, data]) => data.isWorking) // فلترة الأيام التي تم اختيارها فقط
-      .map(([day, data]) => ({
+    // تحويل كائن ساعات العمل إلى مصفوفة، مع تضمين جميع الأيام
+    const workingHoursArray = Object.entries(craftsmanObj.workingHours).map(
+      ([day, data]) => ({
         day,
-        isWorking: true, // نضمن أن isWorking هو true دائمًا للأيام المفلترة
+        isWorking: !!data.isWorking, // الحفاظ على القيمة الحقيقية لـ isWorking
         start: data.start || "",
         end: data.end || "",
-      }));
+      })
+    );
 
     // إضافة مصفوفة ساعات العمل إلى الاستجابة
     craftsmanObj.workingHoursArray = workingHoursArray;
@@ -350,15 +350,15 @@ exports.searchCraftsmen = asyncHandler(async (req, res) => {
 
     // إضافة workingHoursArray إذا كانت workingHours موجودة
     if (craftsmanObj.workingHours) {
-      // تحويل كائن ساعات العمل إلى مصفوفة، مع فلترة الأيام التي تم اختيارها فقط
-      const workingHoursArray = Object.entries(craftsmanObj.workingHours)
-        .filter(([_, data]) => data.isWorking) // فلترة الأيام التي تم اختيارها فقط
-        .map(([day, data]) => ({
+      // تحويل كائن ساعات العمل إلى مصفوفة، مع تضمين جميع الأيام
+      const workingHoursArray = Object.entries(craftsmanObj.workingHours).map(
+        ([day, data]) => ({
           day,
-          isWorking: true, // نضمن أن isWorking هو true دائمًا للأيام المفلترة
+          isWorking: !!data.isWorking, // الحفاظ على القيمة الحقيقية لـ isWorking
           start: data.start || "",
           end: data.end || "",
-        }));
+        })
+      );
 
       // إضافة مصفوفة ساعات العمل إلى الاستجابة
       craftsmanObj.workingHoursArray = workingHoursArray;
