@@ -129,7 +129,10 @@ exports.changePassword = asyncHandler(async (req, res) => {
   // Verificar errores de validación
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.status(400).json({
+      message: "بيانات غير صحيحة",
+      errors: errors.array()
+    });
   }
 
   const { currentPassword, newPassword } = req.body;
@@ -138,20 +141,23 @@ exports.changePassword = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
   if (!user) {
-    return res.status(404).json({ message: "Usuario no encontrado" });
+    return res.status(404).json({ message: "المستخدم غير موجود" });
   }
 
   // Verificar contraseña actual
   const isMatch = await user.comparePassword(currentPassword);
   if (!isMatch) {
-    return res.status(401).json({ message: "Contraseña actual incorrecta" });
+    return res.status(401).json({ message: "كلمة المرور الحالية غير صحيحة" });
   }
 
   // Actualizar contraseña
   user.password = newPassword;
   await user.save();
 
-  res.json({ message: "Contraseña actualizada correctamente" });
+  res.json({
+    message: "تم تغيير كلمة المرور بنجاح",
+    success: true
+  });
 });
 
 // Desactivar cuenta
