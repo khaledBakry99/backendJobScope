@@ -43,6 +43,17 @@ exports.protect = async (req, res, next) => {
       });
     }
 
+    // التحقق من تاريخ تغيير كلمة المرور لإبطال الجلسات القديمة
+    if (user.passwordChangedAt) {
+      const tokenIssuedAt = new Date(decoded.iat * 1000); // تحويل من Unix timestamp إلى Date
+      if (user.passwordChangedAt > tokenIssuedAt) {
+        return res.status(401).json({
+          message: "تم تغيير كلمة المرور. يرجى تسجيل الدخول مرة أخرى",
+          requireReauth: true,
+        });
+      }
+    }
+
     // إضافة المستخدم إلى الطلب
     req.user = user;
     next();

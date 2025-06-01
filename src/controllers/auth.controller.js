@@ -420,40 +420,45 @@ const sendOTPByEmail = async (email, otp) => {
 };
 
 // استيراد خدمة HyperSender
-const hyperSenderService = require('../services/hyperSenderService');
+const hyperSenderService = require("../services/hyperSenderService");
 
 // إرسال رمز التحقق عبر رسالة واتساب باستخدام Hypersender API الجديد
 const sendOTPBySMS = async (phone, otp) => {
   try {
-    console.log(`Sending OTP ${otp} to phone ${phone} via Hypersender WhatsApp API`);
-    const axios = require('axios');
+    console.log(
+      `Sending OTP ${otp} to phone ${phone} via Hypersender WhatsApp API`
+    );
+    const axios = require("axios");
     const apiToken = "250|e2Lq3UqTPIzYJBYhdJviP1Zb066RBHuOCWtkj5eY90306903";
     const instanceId = "9f07891d-21c4-42cd-9c7e-9e350170cf91"; // غيّرها إذا تغيرت
     const apiUrl = `https://app.hypersender.com/api/whatsapp/v1/${instanceId}/send-text-safe`;
     // إزالة + إن وجدت، والتأكد من أن الرقم دولي فقط
-    let phoneDigits = phone.startsWith('+') ? phone.slice(1) : phone;
-    if (phoneDigits.startsWith('0')) phoneDigits = '963' + phoneDigits.slice(1);
+    let phoneDigits = phone.startsWith("+") ? phone.slice(1) : phone;
+    if (phoneDigits.startsWith("0")) phoneDigits = "963" + phoneDigits.slice(1);
     const chatId = `${phoneDigits}@s.whatsapp.net`;
     const message = `رمز التحقق الخاص بك في JobScope هو: ${otp}`;
     const data = {
       chatId: chatId,
-      text: message
+      text: message,
     };
     const headers = {
       Authorization: `Bearer ${apiToken}`,
-      'Content-Type': 'application/json'
+      "Content-Type": "application/json",
     };
     try {
       const response = await axios.post(apiUrl, data, { headers });
       if (response.data && response.status === 201) {
-        console.log('تم إرسال الرسالة بنجاح:', response.data);
+        console.log("تم إرسال الرسالة بنجاح:", response.data);
         return true;
       } else {
-        console.error('تفاصيل رد Hypersender:', response.data);
+        console.error("تفاصيل رد Hypersender:", response.data);
         return false;
       }
     } catch (err) {
-      console.error('خطأ من Hypersender:', err.response ? err.response.data : err.message);
+      console.error(
+        "خطأ من Hypersender:",
+        err.response ? err.response.data : err.message
+      );
       return false;
     }
   } catch (error) {
@@ -558,11 +563,12 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
 
   // توحيد صيغ رقم الهاتف للبحث
   function normalizePhone(p) {
-    if (!p) return '';
-    let phoneDigits = p.replace(/[^\d]/g, ''); // أرقام فقط
-    if (phoneDigits.startsWith('963')) return phoneDigits;
-    if (phoneDigits.startsWith('0')) return '963' + phoneDigits.slice(1);
-    if (phoneDigits.length === 9 && phoneDigits.startsWith('9')) return '963' + phoneDigits;
+    if (!p) return "";
+    let phoneDigits = p.replace(/[^\d]/g, ""); // أرقام فقط
+    if (phoneDigits.startsWith("963")) return phoneDigits;
+    if (phoneDigits.startsWith("0")) return "963" + phoneDigits.slice(1);
+    if (phoneDigits.length === 9 && phoneDigits.startsWith("9"))
+      return "963" + phoneDigits;
     return phoneDigits;
   }
 
@@ -572,8 +578,8 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
     possiblePhones = [
       phone,
       norm,
-      norm.startsWith('963') ? '0' + norm.slice(3) : '',
-      norm.startsWith('963') ? '+' + norm : '',
+      norm.startsWith("963") ? "0" + norm.slice(3) : "",
+      norm.startsWith("963") ? "+" + norm : "",
     ].filter(Boolean);
   }
 
@@ -601,12 +607,21 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
   });
 });
 
-// تسجيل مستخدم تم إنشاؤه باستخدام Firebase
+// تسجيل مستخدم تم إنشاؤه باستخدام Firebase أو Supabase
 exports.registerFirebaseUser = asyncHandler(async (req, res) => {
-  const { uid, name, phone, email, userType, googleId, image } = req.body;
+  const {
+    uid,
+    name,
+    phone,
+    email,
+    userType,
+    googleId,
+    image,
+    isSupabase,
+  } = req.body;
 
   // طباعة البيانات المستلمة للتشخيص
-  console.log("Firebase user registration request received:", {
+  console.log("Firebase/Supabase user registration request received:", {
     uid,
     name,
     email,
@@ -614,19 +629,24 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
     userType,
     googleId,
     hasImage: !!image,
+    isSupabase: !!isSupabase,
   });
 
   if (!uid) {
-    return res.status(400).json({ message: "معرف Firebase مطلوب" });
+    return res.status(400).json({ message: "معرف Firebase أو Supabase مطلوب" });
   }
 
   try {
     // التحقق مما إذا كان المستخدم موجودًا بالفعل
     let user = null;
 
-    // البحث عن المستخدم باستخدام معرف Firebase أو معرف Google أو البريد الإلكتروني
+    // البحث عن المستخدم باستخدام معرف Firebase أو Supabase أو معرف Google أو البريد الإلكتروني
     if (uid) {
-      user = await User.findOne({ firebaseUid: uid });
+      if (isSupabase) {
+        user = await User.findOne({ supabaseUid: uid });
+      } else {
+        user = await User.findOne({ firebaseUid: uid });
+      }
     }
 
     if (!user && googleId) {
@@ -649,8 +669,12 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
         user.googleId = googleId;
       }
 
-      if (uid && !user.firebaseUid) {
-        user.firebaseUid = uid;
+      if (uid) {
+        if (isSupabase && !user.supabaseUid) {
+          user.supabaseUid = uid;
+        } else if (!isSupabase && !user.firebaseUid) {
+          user.firebaseUid = uid;
+        }
       }
 
       if (image) {
@@ -662,16 +686,15 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
     } else {
       console.log("Creating new user");
       // إنشاء مستخدم جديد
-      user = new User({
+      const userData = {
         name,
         phone: phone || "",
         email: email || "",
         userType,
-        firebaseUid: uid,
         googleId,
         profilePicture: image || "",
         isActive: true,
-        // لا نحتاج لكلمة مرور لأن المصادقة تتم عبر Firebase
+        // لا نحتاج لكلمة مرور لأن المصادقة تتم عبر Firebase أو Supabase
         password:
           Math.random()
             .toString(36)
@@ -679,7 +702,16 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
           Math.random()
             .toString(36)
             .substring(2),
-      });
+      };
+
+      // تعيين معرف المصادقة المناسب
+      if (isSupabase) {
+        userData.supabaseUid = uid;
+      } else {
+        userData.firebaseUid = uid;
+      }
+
+      user = new User(userData);
 
       await user.save();
       console.log("New user created with ID:", user._id.toString());
@@ -826,16 +858,16 @@ exports.testSMSConnection = asyncHandler(async (req, res) => {
       config: {
         apiToken: testResult.apiToken,
         apiUrl: testResult.apiUrl,
-        senderId: testResult.senderId
+        senderId: testResult.senderId,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error testing SMS connection:", error);
     res.status(500).json({
       success: false,
       message: "فشل في اختبار اتصال خدمة الرسائل النصية",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -848,11 +880,12 @@ exports.sendTestSMS = asyncHandler(async (req, res) => {
     if (!phone) {
       return res.status(400).json({
         success: false,
-        message: "رقم الهاتف مطلوب"
+        message: "رقم الهاتف مطلوب",
       });
     }
 
-    const testMessage = message || `اختبار من JobScope - ${new Date().toLocaleString('ar-SY')}`;
+    const testMessage =
+      message || `اختبار من JobScope - ${new Date().toLocaleString("ar-SY")}`;
 
     console.log(`Sending test SMS to ${phone}: ${testMessage}`);
 
@@ -860,16 +893,18 @@ exports.sendTestSMS = asyncHandler(async (req, res) => {
 
     res.json({
       success: result.success,
-      message: result.success ? "تم إرسال الرسالة الاختبارية بنجاح" : "فشل في إرسال الرسالة الاختبارية",
+      message: result.success
+        ? "تم إرسال الرسالة الاختبارية بنجاح"
+        : "فشل في إرسال الرسالة الاختبارية",
       result: result,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error sending test SMS:", error);
     res.status(500).json({
       success: false,
       message: "حدث خطأ أثناء إرسال الرسالة الاختبارية",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -885,16 +920,18 @@ exports.getSMSBalance = asyncHandler(async (req, res) => {
       success: balanceResult.success,
       balance: balanceResult.balance,
       currency: balanceResult.currency,
-      message: balanceResult.success ? "تم الحصول على الرصيد بنجاح" : "فشل في الحصول على الرصيد",
+      message: balanceResult.success
+        ? "تم الحصول على الرصيد بنجاح"
+        : "فشل في الحصول على الرصيد",
       error: balanceResult.error,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error getting SMS balance:", error);
     res.status(500).json({
       success: false,
       message: "حدث خطأ أثناء الحصول على رصيد الحساب",
-      error: error.message
+      error: error.message,
     });
   }
 });

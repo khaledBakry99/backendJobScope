@@ -152,12 +152,18 @@ exports.changePassword = asyncHandler(async (req, res) => {
 
     // تحديث كلمة المرور مباشرة
     user.password = newPassword;
+
+    // إضافة حقل لتتبع آخر تغيير لكلمة المرور لإبطال الجلسات القديمة
+    user.passwordChangedAt = new Date();
+
     await user.save();
 
     return res.json({
       message: "تم تغيير كلمة المرور بنجاح",
       success: true,
       isSupabaseUser: true,
+      // إرسال إشارة للعميل لتسجيل الخروج وإعادة تسجيل الدخول
+      requireReauth: true,
     });
   }
 
@@ -169,11 +175,17 @@ exports.changePassword = asyncHandler(async (req, res) => {
 
   // Actualizar contraseña للمستخدمين العاديين
   user.password = newPassword;
+
+  // إضافة حقل لتتبع آخر تغيير لكلمة المرور لإبطال الجلسات القديمة
+  user.passwordChangedAt = new Date();
+
   await user.save();
 
   res.json({
     message: "تم تغيير كلمة المرور بنجاح",
     success: true,
+    // إرسال إشارة للعميل لتسجيل الخروج وإعادة تسجيل الدخول
+    requireReauth: true,
   });
 });
 

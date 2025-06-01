@@ -20,20 +20,25 @@ const userSchema = new mongoose.Schema(
           // إذا كان البريد الإلكتروني فارغًا، تحقق من وجود رقم هاتف أو معرف Firebase
           return !v || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
         },
-        message: props => `${props.value} ليس بريدًا إلكترونيًا صالحًا`
-      }
+        message: (props) => `${props.value} ليس بريدًا إلكترونيًا صالحًا`,
+      },
     },
     password: {
       type: String,
       required: true,
       minlength: 6,
-      // يمكن أن تكون كلمة المرور غير مطلوبة في حالة المصادقة عبر Firebase
+      // يمكن أن تكون كلمة المرور غير مطلوبة في حالة المصادقة عبر Firebase أو Supabase
       validate: {
         validator: function() {
-          return this.firebaseUid || this.googleId || this.password;
+          return (
+            this.firebaseUid ||
+            this.supabaseUid ||
+            this.googleId ||
+            this.password
+          );
         },
         message:
-          "يجب توفير كلمة مرور أو استخدام المصادقة عبر Firebase أو Google",
+          "يجب توفير كلمة مرور أو استخدام المصادقة عبر Firebase أو Supabase أو Google",
       },
     },
     phone: {
@@ -66,10 +71,19 @@ const userSchema = new mongoose.Schema(
       sparse: true,
       index: true,
     },
+    supabaseUid: {
+      type: String,
+      sparse: true,
+      index: true,
+    },
     googleId: {
       type: String,
       sparse: true,
       index: true,
+    },
+    passwordChangedAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   {
@@ -84,7 +98,7 @@ userSchema.pre("save", async function(next) {
 
   try {
     // طباعة معلومات تشخيصية
-    console.log(`Hashing password for user: ${this._id || 'new user'}`);
+    console.log(`Hashing password for user: ${this._id || "new user"}`);
 
     // تشفير كلمة المرور
     const salt = await bcrypt.genSalt(10);
