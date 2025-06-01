@@ -786,6 +786,51 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
   }
 });
 
+// إنشاء حساب أدمن جديد
+exports.createAdminAccount = asyncHandler(async (req, res) => {
+  // التحقق من أخطاء التحقق
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { email, password, name, userType } = req.body;
+
+  // التحقق من أن نوع المستخدم هو admin
+  if (userType !== "admin") {
+    return res.status(400).json({ message: "نوع المستخدم يجب أن يكون admin" });
+  }
+
+  // التحقق من وجود المستخدم مسبقاً
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return res.status(400).json({ message: "المستخدم موجود بالفعل" });
+  }
+
+  // إنشاء المستخدم الجديد
+  const user = new User({
+    name,
+    email,
+    password,
+    userType: "admin",
+    isActive: true,
+    isEmailVerified: true, // الأدمن لا يحتاج تأكيد بريد إلكتروني
+    createdAt: new Date(),
+  });
+
+  await user.save();
+
+  res.status(201).json({
+    message: "تم إنشاء حساب الأدمن بنجاح",
+    admin: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      userType: user.userType,
+    },
+  });
+});
+
 // تسجيل الدخول كمدير
 exports.adminLogin = asyncHandler(async (req, res) => {
   // التحقق من أخطاء التحقق
@@ -841,6 +886,39 @@ exports.adminLogin = asyncHandler(async (req, res) => {
     },
     isAuthenticated: true,
     expiresIn,
+  });
+});
+
+// تغيير كلمة مرور الأدمن
+exports.changeAdminPassword = asyncHandler(async (req, res) => {
+  // التحقق من أخطاء التحقق
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user.id;
+
+  // البحث عن المستخدم والتأكد من أنه أدمن
+  const user = await User.findById(userId);
+  if (!user || user.userType !== "admin") {
+    return res.status(403).json({ message: "غير مصرح لك بتنفيذ هذه العملية" });
+  }
+
+  // التحقق من كلمة المرور الحالية
+  const isMatch = await user.comparePassword(currentPassword);
+  if (!isMatch) {
+    return res.status(400).json({ message: "كلمة المرور الحالية غير صحيحة" });
+  }
+
+  // تحديث كلمة المرور
+  user.password = newPassword;
+  await user.save();
+
+  res.json({
+    message: "تم تغيير كلمة المرور بنجاح",
+    success: true,
   });
 });
 
