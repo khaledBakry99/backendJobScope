@@ -112,15 +112,14 @@ exports.updateAdminPassword = asyncHandler(async (req, res) => {
 
     // التحقق من كلمة المرور الحالية (اختياري)
     if (currentPassword) {
-      const isMatch = await bcrypt.compare(currentPassword, admin.password);
+      const isMatch = await admin.matchPassword(currentPassword);
       if (!isMatch) {
         return res.status(400).json({ message: 'كلمة المرور الحالية غير صحيحة' });
       }
     }
 
-    // تشفير كلمة المرور الجديدة
-    const salt = await bcrypt.genSalt(10);
-    admin.password = await bcrypt.hash(newPassword, salt);
+    // تحديث كلمة المرور (سيتم تشفيرها تلقائياً في pre-save hook)
+    admin.password = newPassword;
 
     await admin.save();
 
@@ -168,8 +167,8 @@ exports.adminLogin = asyncHandler(async (req, res) => {
     }
 
     // التحقق من كلمة المرور
-    const isMatch = await bcrypt.compare(password, admin.password);
-    
+    const isMatch = await admin.matchPassword(password);
+
     if (!isMatch) {
       return res.status(401).json({ message: 'بيانات الدخول غير صحيحة' });
     }

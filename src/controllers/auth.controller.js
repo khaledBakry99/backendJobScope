@@ -831,6 +831,65 @@ exports.createAdminAccount = asyncHandler(async (req, res) => {
   });
 });
 
+// إنشاء حساب أدمن جديد
+exports.createAdminAccount = asyncHandler(async (req, res) => {
+  // التحقق من أخطاء التحقق
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { name, email, password, phone } = req.body;
+
+  // استيراد نموذج الأدمن
+  const Admin = require('../models/Admin');
+
+  try {
+    // التحقق من عدم وجود أدمن بنفس البريد الإلكتروني
+    const existingAdmin = await Admin.findOne({ email });
+    if (existingAdmin) {
+      return res.status(400).json({ message: "البريد الإلكتروني مستخدم بالفعل" });
+    }
+
+    // إنشاء أدمن جديد
+    const adminData = {
+      name,
+      email,
+      password, // سيتم تشفيرها تلقائياً في pre-save hook
+      phone: phone || '',
+      role: 'admin',
+      permissions: [
+        'manage_users',
+        'manage_craftsmen',
+        'manage_bookings',
+        'manage_content',
+        'manage_professions',
+        'manage_system'
+      ],
+      isActive: true
+    };
+
+    const admin = new Admin(adminData);
+    await admin.save();
+
+    res.status(201).json({
+      message: "تم إنشاء حساب الأدمن بنجاح",
+      admin: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        phone: admin.phone,
+        role: admin.role,
+        permissions: admin.permissions,
+        image: admin.image,
+      }
+    });
+  } catch (error) {
+    console.error('خطأ في إنشاء حساب الأدمن:', error);
+    res.status(500).json({ message: 'خطأ في الخادم' });
+  }
+});
+
 // تسجيل الدخول كمدير
 exports.adminLogin = asyncHandler(async (req, res) => {
   // التحقق من أخطاء التحقق
@@ -841,29 +900,36 @@ exports.adminLogin = asyncHandler(async (req, res) => {
 
   const { username, password, rememberMe } = req.body;
 
-  // البحث عن المستخدم عن طريق البريد الإلكتروني والتحقق من أنه مدير
-  const user = await User.findOne({ email: username, userType: "admin" });
-  if (!user) {
+  // استيراد نموذج الأدمن
+  const Admin = require('../models/Admin');
+
+  // البحث عن الأدمن عن طريق البريد الإلكتروني
+  const admin = await Admin.findOne({ email: username });
+  if (!admin) {
     return res.status(401).json({ message: "بيانات الاعتماد غير صالحة" });
   }
 
   // التحقق من كلمة المرور
-  const isMatch = await user.comparePassword(password);
+  const isMatch = await admin.matchPassword(password);
   if (!isMatch) {
     return res.status(401).json({ message: "بيانات الاعتماد غير صالحة" });
   }
 
-  // التحقق مما إذا كان المستخدم نشطًا
-  if (!user.isActive) {
+  // التحقق مما إذا كان الأدمن نشطًا
+  if (!admin.isActive) {
     return res.status(401).json({ message: "تم تعطيل حسابك" });
   }
+
+  // تحديث آخر تسجيل دخول
+  admin.lastLogin = new Date();
+  await admin.save();
 
   // تحديد مدة صلاحية الرمز المميز بناءً على خيار "تذكرني"
   const expiresIn = rememberMe ? "30d" : "24h";
 
   // توليد الرمز المميز
   const token = jwt.sign(
-    { id: user._id, userType: user.userType },
+    { id: admin._id, userType: "admin", role: admin.role },
     process.env.JWT_SECRET,
     { expiresIn }
   );
@@ -871,18 +937,13 @@ exports.adminLogin = asyncHandler(async (req, res) => {
   res.json({
     token,
     admin: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.userType,
-      permissions: [
-        "manage_users",
-        "manage_craftsmen",
-        "manage_bookings",
-        "manage_content",
-        "manage_professions",
-      ],
-      image: user.profilePicture,
+      id: admin._id,
+      name: admin.name,
+      email: admin.email,
+      phone: admin.phone,
+      role: admin.role,
+      permissions: admin.permissions,
+      image: admin.image,
     },
     isAuthenticated: true,
     expiresIn,
@@ -898,23 +959,26 @@ exports.changeAdminPassword = asyncHandler(async (req, res) => {
   }
 
   const { currentPassword, newPassword } = req.body;
-  const userId = req.user.id;
+  const adminId = req.user.id;
 
-  // البحث عن المستخدم والتأكد من أنه أدمن
-  const user = await User.findById(userId);
-  if (!user || user.userType !== "admin") {
+  // استيراد نموذج الأدمن
+  const Admin = require('../models/Admin');
+
+  // البحث عن الأدمن
+  const admin = await Admin.findById(adminId);
+  if (!admin) {
     return res.status(403).json({ message: "غير مصرح لك بتنفيذ هذه العملية" });
   }
 
   // التحقق من كلمة المرور الحالية
-  const isMatch = await user.comparePassword(currentPassword);
+  const isMatch = await admin.matchPassword(currentPassword);
   if (!isMatch) {
     return res.status(400).json({ message: "كلمة المرور الحالية غير صحيحة" });
   }
 
   // تحديث كلمة المرور
-  user.password = newPassword;
-  await user.save();
+  admin.password = newPassword;
+  await admin.save();
 
   res.json({
     message: "تم تغيير كلمة المرور بنجاح",
