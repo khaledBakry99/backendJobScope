@@ -9,6 +9,8 @@ const {
   updateAdminPassword,
   uploadAdminImage,
   adminLogin,
+  // الإحصائيات
+  getDashboardStats,
   // إدارة المستخدمين
   getAllUsers,
   updateUser,
@@ -88,6 +90,13 @@ router.put(
 // @desc    رفع صورة الأدمن
 // @access  Private (Admin only)
 router.post("/upload-image", uploadAdminImage);
+
+// ===== مسارات الإحصائيات =====
+
+// @route   GET /api/admin/stats
+// @desc    الحصول على إحصائيات لوحة التحكم
+// @access  Private (Admin only)
+router.get("/stats", getDashboardStats);
 
 // ===== مسارات إدارة المستخدمين =====
 

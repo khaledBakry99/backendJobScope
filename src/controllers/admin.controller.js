@@ -255,6 +255,64 @@ exports.deleteUser = asyncHandler(async (req, res) => {
   }
 });
 
+// ===== الإحصائيات =====
+
+// الحصول على إحصائيات لوحة التحكم
+exports.getDashboardStats = asyncHandler(async (req, res) => {
+  try {
+    // جلب جميع المستخدمين
+    const users = await User.find({}).select("userType isActive createdAt");
+
+    // جلب جميع الحرفيين
+    const craftsmen = await Craftsman.find({}).populate(
+      "user",
+      "isActive createdAt"
+    );
+
+    // جلب جميع الحجوزات
+    const bookings = await Booking.find({}).select("status createdAt");
+
+    // حساب الإحصائيات
+    const totalUsers = users.length;
+    const totalCraftsmen = craftsmen.length;
+    const totalClients = users.filter((user) => user.userType === "client")
+      .length;
+    const totalBookings = bookings.length;
+    const pendingBookings = bookings.filter(
+      (booking) => booking.status === "pending"
+    ).length;
+    const completedBookings = bookings.filter(
+      (booking) => booking.status === "completed"
+    ).length;
+    const activeUsers = users.filter((user) => user.isActive).length;
+
+    // المستخدمين الجدد هذا الشهر
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    const newUsersThisMonth = users.filter((user) => {
+      const userDate = new Date(user.createdAt);
+      return (
+        userDate.getMonth() === currentMonth &&
+        userDate.getFullYear() === currentYear
+      );
+    }).length;
+
+    res.json({
+      totalUsers,
+      totalCraftsmen,
+      totalClients,
+      totalBookings,
+      pendingBookings,
+      completedBookings,
+      activeUsers,
+      newUsersThisMonth,
+    });
+  } catch (error) {
+    console.error("خطأ في جلب الإحصائيات:", error);
+    res.status(500).json({ message: "خطأ في الخادم", error: error.message });
+  }
+});
+
 // ===== إدارة الحرفيين =====
 
 // الحصول على جميع الحرفيين
@@ -353,8 +411,8 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
         path: "craftsman",
         populate: {
           path: "user",
-          select: "name email phone"
-        }
+          select: "name email phone",
+        },
       });
 
     if (!booking) {
@@ -399,6 +457,8 @@ module.exports = {
   updateAdminPassword: exports.updateAdminPassword,
   uploadAdminImage: exports.uploadAdminImage,
   adminLogin: exports.adminLogin,
+  // الإحصائيات
+  getDashboardStats: exports.getDashboardStats,
   // إدارة المستخدمين
   getAllUsers: exports.getAllUsers,
   updateUser: exports.updateUser,
