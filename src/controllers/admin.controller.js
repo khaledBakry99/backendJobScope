@@ -318,17 +318,16 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
 // الحصول على جميع الحرفيين
 exports.getAllCraftsmen = asyncHandler(async (req, res) => {
   try {
+    console.log("بدء جلب الحرفيين...");
     const craftsmen = await Craftsman.find({})
-      .select("-password -profilePicture -image -workGallery -gallery")
-      .populate(
-        "user",
-        "name email phone isActive userType -profilePicture -image"
-      )
+      .populate("user", "name email phone isActive userType")
       .sort({ createdAt: -1 });
+    console.log(`تم العثور على ${craftsmen.length} حرفي`);
     res.json(craftsmen);
   } catch (error) {
     console.error("خطأ في جلب الحرفيين:", error);
-    res.status(500).json({ message: "خطأ في الخادم" });
+    console.error("تفاصيل الخطأ:", error.message);
+    res.status(500).json({ message: "خطأ في الخادم", error: error.message });
   }
 });
 
