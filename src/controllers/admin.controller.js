@@ -1,23 +1,23 @@
-const asyncHandler = require('express-async-handler');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { validationResult } = require('express-validator');
-const Admin = require('../models/Admin');
-const User = require('../models/user.model');
-const Craftsman = require('../models/craftsman.model');
-const Booking = require('../models/booking.model');
-const multer = require('multer');
-const path = require('path');
+const asyncHandler = require("express-async-handler");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const { validationResult } = require("express-validator");
+const Admin = require("../models/Admin");
+const User = require("../models/user.model");
+const Craftsman = require("../models/craftsman.model");
+const Booking = require("../models/booking.model");
+const multer = require("multer");
+const path = require("path");
 
 // إعداد multer لرفع الصور
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/admin/');
+  destination: function(req, file, cb) {
+    cb(null, "uploads/admin/");
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'admin-' + uniqueSuffix + path.extname(file.originalname));
-  }
+  filename: function(req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, "admin-" + uniqueSuffix + path.extname(file.originalname));
+  },
 });
 
 const upload = multer({
@@ -25,29 +25,29 @@ const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB
   },
-  fileFilter: function (req, file, cb) {
-    if (file.mimetype.startsWith('image/')) {
+  fileFilter: function(req, file, cb) {
+    if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
-      cb(new Error('يجب أن يكون الملف صورة'), false);
+      cb(new Error("يجب أن يكون الملف صورة"), false);
     }
-  }
+  },
 });
 
 // الحصول على بيانات الأدمن
 exports.getAdminProfile = asyncHandler(async (req, res) => {
   try {
     // البحث عن الأدمن باستخدام المعرف من التوكن
-    const admin = await Admin.findById(req.user.id).select('-password');
-    
+    const admin = await Admin.findById(req.user.id).select("-password");
+
     if (!admin) {
-      return res.status(404).json({ message: 'الأدمن غير موجود' });
+      return res.status(404).json({ message: "الأدمن غير موجود" });
     }
 
     res.json(admin);
   } catch (error) {
-    console.error('خطأ في الحصول على بيانات الأدمن:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في الحصول على بيانات الأدمن:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
@@ -64,16 +64,18 @@ exports.updateAdminProfile = asyncHandler(async (req, res) => {
 
     // البحث عن الأدمن
     const admin = await Admin.findById(req.user.id);
-    
+
     if (!admin) {
-      return res.status(404).json({ message: 'الأدمن غير موجود' });
+      return res.status(404).json({ message: "الأدمن غير موجود" });
     }
 
     // التحقق من عدم وجود بريد إلكتروني مكرر
     if (email && email !== admin.email) {
       const existingAdmin = await Admin.findOne({ email });
       if (existingAdmin) {
-        return res.status(400).json({ message: 'البريد الإلكتروني مستخدم بالفعل' });
+        return res
+          .status(400)
+          .json({ message: "البريد الإلكتروني مستخدم بالفعل" });
       }
     }
 
@@ -86,12 +88,12 @@ exports.updateAdminProfile = asyncHandler(async (req, res) => {
     await admin.save();
 
     // إرجاع البيانات المحدثة بدون كلمة المرور
-    const updatedAdmin = await Admin.findById(admin._id).select('-password');
-    
+    const updatedAdmin = await Admin.findById(admin._id).select("-password");
+
     res.json(updatedAdmin);
   } catch (error) {
-    console.error('خطأ في تحديث بيانات الأدمن:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في تحديث بيانات الأدمن:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
@@ -108,16 +110,18 @@ exports.updateAdminPassword = asyncHandler(async (req, res) => {
 
     // البحث عن الأدمن
     const admin = await Admin.findById(req.user.id);
-    
+
     if (!admin) {
-      return res.status(404).json({ message: 'الأدمن غير موجود' });
+      return res.status(404).json({ message: "الأدمن غير موجود" });
     }
 
     // التحقق من كلمة المرور الحالية (اختياري)
     if (currentPassword) {
       const isMatch = await admin.matchPassword(currentPassword);
       if (!isMatch) {
-        return res.status(400).json({ message: 'كلمة المرور الحالية غير صحيحة' });
+        return res
+          .status(400)
+          .json({ message: "كلمة المرور الحالية غير صحيحة" });
       }
     }
 
@@ -126,35 +130,35 @@ exports.updateAdminPassword = asyncHandler(async (req, res) => {
 
     await admin.save();
 
-    res.json({ message: 'تم تحديث كلمة المرور بنجاح' });
+    res.json({ message: "تم تحديث كلمة المرور بنجاح" });
   } catch (error) {
-    console.error('خطأ في تحديث كلمة مرور الأدمن:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في تحديث كلمة مرور الأدمن:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
 // رفع صورة الأدمن
 exports.uploadAdminImage = [
-  upload.single('image'),
+  upload.single("image"),
   asyncHandler(async (req, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ message: 'لم يتم رفع أي صورة' });
+        return res.status(400).json({ message: "لم يتم رفع أي صورة" });
       }
 
       // إنشاء رابط الصورة
       const imageUrl = `/uploads/admin/${req.file.filename}`;
 
       res.json({
-        message: 'تم رفع الصورة بنجاح',
+        message: "تم رفع الصورة بنجاح",
         imageUrl: imageUrl,
-        url: imageUrl
+        url: imageUrl,
       });
     } catch (error) {
-      console.error('خطأ في رفع صورة الأدمن:', error);
-      res.status(500).json({ message: 'خطأ في رفع الصورة' });
+      console.error("خطأ في رفع صورة الأدمن:", error);
+      res.status(500).json({ message: "خطأ في رفع الصورة" });
     }
-  })
+  }),
 ];
 
 // تسجيل دخول الأدمن
@@ -164,35 +168,35 @@ exports.adminLogin = asyncHandler(async (req, res) => {
   try {
     // البحث عن الأدمن
     const admin = await Admin.findOne({ email });
-    
+
     if (!admin) {
-      return res.status(401).json({ message: 'بيانات الدخول غير صحيحة' });
+      return res.status(401).json({ message: "بيانات الدخول غير صحيحة" });
     }
 
     // التحقق من كلمة المرور
     const isMatch = await admin.matchPassword(password);
 
     if (!isMatch) {
-      return res.status(401).json({ message: 'بيانات الدخول غير صحيحة' });
+      return res.status(401).json({ message: "بيانات الدخول غير صحيحة" });
     }
 
     // إنشاء التوكن
     const token = jwt.sign(
-      { id: admin._id, role: 'admin' },
+      { id: admin._id, role: "admin" },
       process.env.JWT_SECRET,
-      { expiresIn: '30d' }
+      { expiresIn: "30d" }
     );
 
     // إرجاع البيانات بدون كلمة المرور
-    const adminData = await Admin.findById(admin._id).select('-password');
+    const adminData = await Admin.findById(admin._id).select("-password");
 
     res.json({
       token,
-      admin: adminData
+      admin: adminData,
     });
   } catch (error) {
-    console.error('خطأ في تسجيل دخول الأدمن:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في تسجيل دخول الأدمن:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
@@ -201,11 +205,13 @@ exports.adminLogin = asyncHandler(async (req, res) => {
 // الحصول على جميع المستخدمين
 exports.getAllUsers = asyncHandler(async (req, res) => {
   try {
-    const users = await User.find({}).select('-password').sort({ createdAt: -1 });
+    const users = await User.find({})
+      .select("-password -profilePicture -image")
+      .sort({ createdAt: -1 });
     res.json(users);
   } catch (error) {
-    console.error('خطأ في جلب المستخدمين:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في جلب المستخدمين:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
@@ -215,20 +221,19 @@ exports.updateUser = asyncHandler(async (req, res) => {
     const { userId } = req.params;
     const updateData = req.body;
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password');
+    const user = await User.findByIdAndUpdate(userId, updateData, {
+      new: true,
+      runValidators: true,
+    }).select("-password");
 
     if (!user) {
-      return res.status(404).json({ message: 'المستخدم غير موجود' });
+      return res.status(404).json({ message: "المستخدم غير موجود" });
     }
 
     res.json(user);
   } catch (error) {
-    console.error('خطأ في تحديث المستخدم:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في تحديث المستخدم:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
@@ -240,13 +245,13 @@ exports.deleteUser = asyncHandler(async (req, res) => {
     const user = await User.findByIdAndDelete(userId);
 
     if (!user) {
-      return res.status(404).json({ message: 'المستخدم غير موجود' });
+      return res.status(404).json({ message: "المستخدم غير موجود" });
     }
 
-    res.json({ message: 'تم حذف المستخدم بنجاح' });
+    res.json({ message: "تم حذف المستخدم بنجاح" });
   } catch (error) {
-    console.error('خطأ في حذف المستخدم:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في حذف المستخدم:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
@@ -255,11 +260,17 @@ exports.deleteUser = asyncHandler(async (req, res) => {
 // الحصول على جميع الحرفيين
 exports.getAllCraftsmen = asyncHandler(async (req, res) => {
   try {
-    const craftsmen = await Craftsman.find({}).select('-password').sort({ createdAt: -1 });
+    const craftsmen = await Craftsman.find({})
+      .select("-password -profilePicture -image -workGallery -gallery")
+      .populate(
+        "user",
+        "name email phone isActive userType -profilePicture -image"
+      )
+      .sort({ createdAt: -1 });
     res.json(craftsmen);
   } catch (error) {
-    console.error('خطأ في جلب الحرفيين:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في جلب الحرفيين:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
@@ -273,16 +284,16 @@ exports.updateCraftsman = asyncHandler(async (req, res) => {
       craftsmanId,
       updateData,
       { new: true, runValidators: true }
-    ).select('-password');
+    ).select("-password");
 
     if (!craftsman) {
-      return res.status(404).json({ message: 'الحرفي غير موجود' });
+      return res.status(404).json({ message: "الحرفي غير موجود" });
     }
 
     res.json(craftsman);
   } catch (error) {
-    console.error('خطأ في تحديث الحرفي:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في تحديث الحرفي:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
@@ -294,13 +305,13 @@ exports.deleteCraftsman = asyncHandler(async (req, res) => {
     const craftsman = await Craftsman.findByIdAndDelete(craftsmanId);
 
     if (!craftsman) {
-      return res.status(404).json({ message: 'الحرفي غير موجود' });
+      return res.status(404).json({ message: "الحرفي غير موجود" });
     }
 
-    res.json({ message: 'تم حذف الحرفي بنجاح' });
+    res.json({ message: "تم حذف الحرفي بنجاح" });
   } catch (error) {
-    console.error('خطأ في حذف الحرفي:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في حذف الحرفي:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
@@ -310,13 +321,19 @@ exports.deleteCraftsman = asyncHandler(async (req, res) => {
 exports.getAllBookings = asyncHandler(async (req, res) => {
   try {
     const bookings = await Booking.find({})
-      .populate('client', 'name email phone')
-      .populate('craftsman', 'name email phone profession')
+      .populate("client", "name email phone")
+      .populate({
+        path: "craftsman",
+        populate: {
+          path: "user",
+          select: "name email phone",
+        },
+      })
       .sort({ createdAt: -1 });
     res.json(bookings);
   } catch (error) {
-    console.error('خطأ في جلب الحجوزات:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في جلب الحجوزات:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
@@ -330,17 +347,24 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
       bookingId,
       { status },
       { new: true, runValidators: true }
-    ).populate('client', 'name email phone')
-     .populate('craftsman', 'name email phone profession');
+    )
+      .populate("client", "name email phone")
+      .populate({
+        path: "craftsman",
+        populate: {
+          path: "user",
+          select: "name email phone"
+        }
+      });
 
     if (!booking) {
-      return res.status(404).json({ message: 'الحجز غير موجود' });
+      return res.status(404).json({ message: "الحجز غير موجود" });
     }
 
     res.json(booking);
   } catch (error) {
-    console.error('خطأ في تحديث حالة الحجز:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في تحديث حالة الحجز:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
@@ -350,22 +374,22 @@ exports.processExpiredBookings = asyncHandler(async (req, res) => {
     const now = new Date();
     const expiredBookings = await Booking.updateMany(
       {
-        status: 'pending',
-        scheduledDate: { $lt: now }
+        status: "pending",
+        scheduledDate: { $lt: now },
       },
       {
-        status: 'cancelled',
-        cancellationReason: 'cancelled due to time expiration'
+        status: "cancelled",
+        cancellationReason: "cancelled due to time expiration",
       }
     );
 
     res.json({
-      message: 'تم معالجة الحجوزات المنتهية الصلاحية',
-      modifiedCount: expiredBookings.modifiedCount
+      message: "تم معالجة الحجوزات المنتهية الصلاحية",
+      modifiedCount: expiredBookings.modifiedCount,
     });
   } catch (error) {
-    console.error('خطأ في معالجة الحجوزات المنتهية الصلاحية:', error);
-    res.status(500).json({ message: 'خطأ في الخادم' });
+    console.error("خطأ في معالجة الحجوزات المنتهية الصلاحية:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
 
@@ -386,5 +410,5 @@ module.exports = {
   // إدارة الحجوزات
   getAllBookings: exports.getAllBookings,
   updateBookingStatus: exports.updateBookingStatus,
-  processExpiredBookings: exports.processExpiredBookings
+  processExpiredBookings: exports.processExpiredBookings,
 };
