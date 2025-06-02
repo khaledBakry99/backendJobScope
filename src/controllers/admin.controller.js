@@ -3,6 +3,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const Admin = require('../models/Admin');
+const User = require('../models/user.model');
+const Craftsman = require('../models/craftsman.model');
+const Booking = require('../models/booking.model');
 const multer = require('multer');
 const path = require('path');
 
@@ -193,10 +196,195 @@ exports.adminLogin = asyncHandler(async (req, res) => {
   }
 });
 
+// ===== إدارة المستخدمين =====
+
+// الحصول على جميع المستخدمين
+exports.getAllUsers = asyncHandler(async (req, res) => {
+  try {
+    const users = await User.find({}).select('-password').sort({ createdAt: -1 });
+    res.json(users);
+  } catch (error) {
+    console.error('خطأ في جلب المستخدمين:', error);
+    res.status(500).json({ message: 'خطأ في الخادم' });
+  }
+});
+
+// تحديث مستخدم
+exports.updateUser = asyncHandler(async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const updateData = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'المستخدم غير موجود' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('خطأ في تحديث المستخدم:', error);
+    res.status(500).json({ message: 'خطأ في الخادم' });
+  }
+});
+
+// حذف مستخدم
+exports.deleteUser = asyncHandler(async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findByIdAndDelete(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'المستخدم غير موجود' });
+    }
+
+    res.json({ message: 'تم حذف المستخدم بنجاح' });
+  } catch (error) {
+    console.error('خطأ في حذف المستخدم:', error);
+    res.status(500).json({ message: 'خطأ في الخادم' });
+  }
+});
+
+// ===== إدارة الحرفيين =====
+
+// الحصول على جميع الحرفيين
+exports.getAllCraftsmen = asyncHandler(async (req, res) => {
+  try {
+    const craftsmen = await Craftsman.find({}).select('-password').sort({ createdAt: -1 });
+    res.json(craftsmen);
+  } catch (error) {
+    console.error('خطأ في جلب الحرفيين:', error);
+    res.status(500).json({ message: 'خطأ في الخادم' });
+  }
+});
+
+// تحديث حرفي
+exports.updateCraftsman = asyncHandler(async (req, res) => {
+  try {
+    const { craftsmanId } = req.params;
+    const updateData = req.body;
+
+    const craftsman = await Craftsman.findByIdAndUpdate(
+      craftsmanId,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!craftsman) {
+      return res.status(404).json({ message: 'الحرفي غير موجود' });
+    }
+
+    res.json(craftsman);
+  } catch (error) {
+    console.error('خطأ في تحديث الحرفي:', error);
+    res.status(500).json({ message: 'خطأ في الخادم' });
+  }
+});
+
+// حذف حرفي
+exports.deleteCraftsman = asyncHandler(async (req, res) => {
+  try {
+    const { craftsmanId } = req.params;
+
+    const craftsman = await Craftsman.findByIdAndDelete(craftsmanId);
+
+    if (!craftsman) {
+      return res.status(404).json({ message: 'الحرفي غير موجود' });
+    }
+
+    res.json({ message: 'تم حذف الحرفي بنجاح' });
+  } catch (error) {
+    console.error('خطأ في حذف الحرفي:', error);
+    res.status(500).json({ message: 'خطأ في الخادم' });
+  }
+});
+
+// ===== إدارة الحجوزات =====
+
+// الحصول على جميع الحجوزات
+exports.getAllBookings = asyncHandler(async (req, res) => {
+  try {
+    const bookings = await Booking.find({})
+      .populate('client', 'name email phone')
+      .populate('craftsman', 'name email phone profession')
+      .sort({ createdAt: -1 });
+    res.json(bookings);
+  } catch (error) {
+    console.error('خطأ في جلب الحجوزات:', error);
+    res.status(500).json({ message: 'خطأ في الخادم' });
+  }
+});
+
+// تحديث حالة الحجز
+exports.updateBookingStatus = asyncHandler(async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { status } = req.body;
+
+    const booking = await Booking.findByIdAndUpdate(
+      bookingId,
+      { status },
+      { new: true, runValidators: true }
+    ).populate('client', 'name email phone')
+     .populate('craftsman', 'name email phone profession');
+
+    if (!booking) {
+      return res.status(404).json({ message: 'الحجز غير موجود' });
+    }
+
+    res.json(booking);
+  } catch (error) {
+    console.error('خطأ في تحديث حالة الحجز:', error);
+    res.status(500).json({ message: 'خطأ في الخادم' });
+  }
+});
+
+// معالجة الحجوزات المنتهية الصلاحية
+exports.processExpiredBookings = asyncHandler(async (req, res) => {
+  try {
+    const now = new Date();
+    const expiredBookings = await Booking.updateMany(
+      {
+        status: 'pending',
+        scheduledDate: { $lt: now }
+      },
+      {
+        status: 'cancelled',
+        cancellationReason: 'cancelled due to time expiration'
+      }
+    );
+
+    res.json({
+      message: 'تم معالجة الحجوزات المنتهية الصلاحية',
+      modifiedCount: expiredBookings.modifiedCount
+    });
+  } catch (error) {
+    console.error('خطأ في معالجة الحجوزات المنتهية الصلاحية:', error);
+    res.status(500).json({ message: 'خطأ في الخادم' });
+  }
+});
+
 module.exports = {
   getAdminProfile: exports.getAdminProfile,
   updateAdminProfile: exports.updateAdminProfile,
   updateAdminPassword: exports.updateAdminPassword,
   uploadAdminImage: exports.uploadAdminImage,
-  adminLogin: exports.adminLogin
+  adminLogin: exports.adminLogin,
+  // إدارة المستخدمين
+  getAllUsers: exports.getAllUsers,
+  updateUser: exports.updateUser,
+  deleteUser: exports.deleteUser,
+  // إدارة الحرفيين
+  getAllCraftsmen: exports.getAllCraftsmen,
+  updateCraftsman: exports.updateCraftsman,
+  deleteCraftsman: exports.deleteCraftsman,
+  // إدارة الحجوزات
+  getAllBookings: exports.getAllBookings,
+  updateBookingStatus: exports.updateBookingStatus,
+  processExpiredBookings: exports.processExpiredBookings
 };

@@ -9,6 +9,18 @@ const {
   updateAdminPassword,
   uploadAdminImage,
   adminLogin,
+  // إدارة المستخدمين
+  getAllUsers,
+  updateUser,
+  deleteUser,
+  // إدارة الحرفيين
+  getAllCraftsmen,
+  updateCraftsman,
+  deleteCraftsman,
+  // إدارة الحجوزات
+  getAllBookings,
+  updateBookingStatus,
+  processExpiredBookings,
 } = require("../controllers/admin.controller");
 
 // استيراد الوسطاء
@@ -76,5 +88,56 @@ router.put(
 // @desc    رفع صورة الأدمن
 // @access  Private (Admin only)
 router.post("/upload-image", uploadAdminImage);
+
+// ===== مسارات إدارة المستخدمين =====
+
+// @route   GET /api/admin/users
+// @desc    الحصول على جميع المستخدمين
+// @access  Private (Admin only)
+router.get("/users", getAllUsers);
+
+// @route   PUT /api/admin/users/:userId
+// @desc    تحديث مستخدم
+// @access  Private (Admin only)
+router.put("/users/:userId", updateUser);
+
+// @route   DELETE /api/admin/users/:userId
+// @desc    حذف مستخدم
+// @access  Private (Admin only)
+router.delete("/users/:userId", deleteUser);
+
+// ===== مسارات إدارة الحرفيين =====
+
+// @route   GET /api/admin/craftsmen
+// @desc    الحصول على جميع الحرفيين
+// @access  Private (Admin only)
+router.get("/craftsmen", getAllCraftsmen);
+
+// @route   PUT /api/admin/craftsmen/:craftsmanId
+// @desc    تحديث حرفي
+// @access  Private (Admin only)
+router.put("/craftsmen/:craftsmanId", updateCraftsman);
+
+// @route   DELETE /api/admin/craftsmen/:craftsmanId
+// @desc    حذف حرفي
+// @access  Private (Admin only)
+router.delete("/craftsmen/:craftsmanId", deleteCraftsman);
+
+// ===== مسارات إدارة الحجوزات =====
+
+// @route   GET /api/admin/bookings
+// @desc    الحصول على جميع الحجوزات
+// @access  Private (Admin only)
+router.get("/bookings", getAllBookings);
+
+// @route   PUT /api/admin/bookings/:bookingId/status
+// @desc    تحديث حالة الحجز
+// @access  Private (Admin only)
+router.put("/bookings/:bookingId/status", updateBookingStatus);
+
+// @route   POST /api/admin/bookings/process-expired
+// @desc    معالجة الحجوزات المنتهية الصلاحية
+// @access  Private (Admin only)
+router.post("/bookings/process-expired", processExpiredBookings);
 
 module.exports = router;
