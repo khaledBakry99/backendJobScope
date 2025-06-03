@@ -5,9 +5,45 @@ const Review = require("../models/review.model");
 const { asyncHandler } = require("../middleware/error.middleware");
 const { calculateDistance } = require("../utils/geo.utils");
 
+// دالة للتحقق من انتهاء صلاحية إخفاء معلومات الاتصال
+const checkAndUpdateContactVisibilityExpiry = async (craftsmen) => {
+  const now = new Date();
+  const updates = [];
+
+  for (const craftsman of craftsmen) {
+    if (
+      craftsman.hideContactInfo &&
+      craftsman.hideContactInfoExpiry &&
+      now > craftsman.hideContactInfoExpiry
+    ) {
+      updates.push(
+        Craftsman.findByIdAndUpdate(craftsman._id, {
+          hideContactInfo: false,
+          hideContactInfoExpiry: null,
+        })
+      );
+    }
+  }
+
+  if (updates.length > 0) {
+    await Promise.all(updates);
+    console.log(
+      `تم إلغاء إخفاء معلومات الاتصال لـ ${updates.length} حرفي بسبب انتهاء الصلاحية`
+    );
+  }
+};
+
 // Obtener todos los artesanos
 exports.getAllCraftsmen = asyncHandler(async (req, res) => {
-  const craftsmen = await Craftsman.find()
+  let craftsmen = await Craftsman.find()
+    .populate("user", "name email phone profilePicture")
+    .sort({ createdAt: -1 });
+
+  // التحقق من انتهاء صلاحية إخفاء معلومات الاتصال
+  await checkAndUpdateContactVisibilityExpiry(craftsmen);
+
+  // إعادة جلب البيانات بعد التحديث
+  craftsmen = await Craftsman.find()
     .populate("user", "name email phone profilePicture")
     .sort({ createdAt: -1 });
 

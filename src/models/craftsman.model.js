@@ -71,6 +71,14 @@ const craftsmanSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    hideContactInfo: {
+      type: Boolean,
+      default: false,
+    },
+    hideContactInfoExpiry: {
+      type: Date,
+      default: null,
+    },
     workGallery: [
       {
         type: String,
@@ -92,7 +100,7 @@ const craftsmanSchema = new mongoose.Schema(
       of: {
         isWorking: Boolean,
         start: String,
-        end: String
+        end: String,
       },
       default: {
         saturday: { isWorking: false, start: "", end: "" },
@@ -101,8 +109,8 @@ const craftsmanSchema = new mongoose.Schema(
         tuesday: { isWorking: false, start: "", end: "" },
         wednesday: { isWorking: false, start: "", end: "" },
         thursday: { isWorking: false, start: "", end: "" },
-        friday: { isWorking: false, start: "", end: "" }
-      }
+        friday: { isWorking: false, start: "", end: "" },
+      },
     },
     // ساعات العمل كمصفوفة (للتوافق مع الواجهة الجديدة)
     workingHoursArray: [workingHoursSchema],
