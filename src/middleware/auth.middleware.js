@@ -75,3 +75,12 @@ exports.authorize = (...roles) => {
     next();
   };
 };
+
+// وسيط للتحقق من أن المستخدم هو مسؤول
+exports.admin = (req, res, next) => {
+  if (req.user && req.user.userType === "admin") {
+    next();
+  } else {
+    res.status(403).json({ message: "Not authorized as an admin" });
+  }
+};
