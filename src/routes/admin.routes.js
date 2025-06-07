@@ -26,8 +26,7 @@ const {
 } = require("../controllers/admin.controller");
 
 // استيراد الوسطاء
-const { protect } = require("../middleware/authMiddleware");
-const { isAdmin } = require("../middleware/roleMiddleware");
+const { protect, admin } = require("../middleware/auth.middleware.js");
 
 // @route   POST /api/admin/login
 // @desc    تسجيل دخول الأدمن
@@ -43,7 +42,7 @@ router.post(
 
 // جميع المسارات التالية تتطلب مصادقة الأدمن
 router.use(protect);
-router.use(isAdmin);
+router.use(admin);
 
 // @route   GET /api/admin/profile
 // @desc    الحصول على بيانات الأدمن
