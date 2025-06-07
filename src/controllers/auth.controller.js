@@ -786,6 +786,67 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
   }
 });
 
+// إنشاء حساب أدمن جديد
+exports.createAdminAccount = asyncHandler(async (req, res) => {
+  // التحقق من أخطاء التحقق
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { name, email, password, phone } = req.body;
+
+  // استيراد نموذج الأدمن
+  const Admin = require("../models/Admin");
+
+  try {
+    // التحقق من عدم وجود أدمن بنفس البريد الإلكتروني
+    const existingAdmin = await Admin.findOne({ email });
+    if (existingAdmin) {
+      return res
+        .status(400)
+        .json({ message: "البريد الإلكتروني مستخدم بالفعل" });
+    }
+
+    // إنشاء أدمن جديد
+    const adminData = {
+      name,
+      email,
+      password, // سيتم تشفيرها تلقائياً في pre-save hook
+      phone: phone || "",
+      role: "admin",
+      permissions: [
+        "manage_users",
+        "manage_craftsmen",
+        "manage_bookings",
+        "manage_content",
+        "manage_professions",
+        "manage_system",
+      ],
+      isActive: true,
+    };
+
+    const admin = new Admin(adminData);
+    await admin.save();
+
+    res.status(201).json({
+      message: "تم إنشاء حساب الأدمن بنجاح",
+      admin: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        phone: admin.phone,
+        role: admin.role,
+        permissions: admin.permissions,
+        image: admin.image,
+      },
+    });
+  } catch (error) {
+    console.error("خطأ في إنشاء حساب الأدمن:", error);
+    res.status(500).json({ message: "خطأ في الخادم" });
+  }
+});
+
 // تسجيل الدخول كمدير
 exports.adminLogin = asyncHandler(async (req, res) => {
   // التحقق من أخطاء التحقق
@@ -797,7 +858,7 @@ exports.adminLogin = asyncHandler(async (req, res) => {
   const { username, password, rememberMe } = req.body;
 
   // استيراد نموذج الأدمن
-  const Admin = require('../models/Admin.js');
+  const Admin = require("../models/Admin.js");
 
   // البحث عن الأدمن عن طريق البريد الإلكتروني
   const admin = await Admin.findOne({ email: username });
@@ -858,7 +919,7 @@ exports.changeAdminPassword = asyncHandler(async (req, res) => {
   const adminId = req.user.id;
 
   // استيراد نموذج الأدمن
-  const Admin = require('../models/Admin');
+  const Admin = require("../models/Admin");
 
   // البحث عن الأدمن
   const admin = await Admin.findById(adminId);
