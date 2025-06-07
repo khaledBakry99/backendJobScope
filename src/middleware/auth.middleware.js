@@ -27,8 +27,13 @@ exports.protect = async (req, res, next) => {
     // التحقق من الرمز المميز
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // البحث عن المستخدم
-    const user = await User.findById(decoded.id).select("-password");
+    let user;
+    if (decoded.userType === 'admin') {
+      const Admin = require('../models/Admin.js');
+      user = await Admin.findById(decoded.id);
+    } else {
+      user = await User.findById(decoded.id).select("-password");
+    }
 
     if (!user) {
       return res.status(401).json({
