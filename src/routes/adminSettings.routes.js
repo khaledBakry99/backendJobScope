@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { updateSettings } = require('../controllers/settings.controller');
-const { protect, admin } = require('../middleware/auth.middleware');
+const { protect } = require('../middleware/authMiddleware.js');
+const { isAdmin } = require('../middleware/roleMiddleware.js');
 
-router.put('/', protect, admin, updateSettings);
+router.put('/', protect, isAdmin, updateSettings);
 
 module.exports = router;
