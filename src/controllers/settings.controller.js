@@ -38,6 +38,7 @@ exports.updateSettings = async (req, res) => {
     await settings.save();
     res.json(settings);
   } catch (error) {
+    console.error("Error updating settings:", error);
     res.status(500).json({ message: 'Server error' });
   }
 };
