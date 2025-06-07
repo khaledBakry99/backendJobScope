@@ -23,11 +23,17 @@ exports.getSettings = async (req, res) => {
 // Update site settings
 exports.updateSettings = async (req, res) => {
   try {
-    const updateData = req.body;
+    const { siteName, description, contactEmail, contactPhone } = req.body;
+
+    // Create an object with only the fields we want to update
+    const updateData = {};
+    if (siteName) updateData.siteName = siteName;
+    if (description) updateData.description = description;
+    if (contactEmail) updateData.contactEmail = contactEmail;
+    if (contactPhone) updateData.contactPhone = contactPhone;
 
     // Use findOneAndUpdate to find the single settings document and update it
-    // The filter is empty {} to match the first document found
-    const settings = await Settings.findOneAndUpdate({}, updateData, {
+    const settings = await Settings.findOneAndUpdate({}, { $set: updateData }, {
       new: true, // Return the updated document
       runValidators: true, // Run schema validators
     });
