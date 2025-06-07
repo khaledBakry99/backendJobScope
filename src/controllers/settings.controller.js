@@ -23,19 +23,20 @@ exports.getSettings = async (req, res) => {
 // Update site settings
 exports.updateSettings = async (req, res) => {
   try {
-    let settings = await Settings.findOne();
+    const updateData = req.body;
+
+    // Use findOneAndUpdate to find the single settings document and update it
+    // The filter is empty {} to match the first document found
+    const settings = await Settings.findOneAndUpdate({}, updateData, {
+      new: true, // Return the updated document
+      runValidators: true, // Run schema validators
+    });
+
     if (!settings) {
+      // This case should ideally not be hit if settings are seeded correctly
       return res.status(404).json({ message: 'Settings not found' });
     }
 
-    const { siteName, description, contactEmail, contactPhone } = req.body;
-
-    settings.siteName = siteName || settings.siteName;
-    settings.description = description || settings.description;
-    settings.contactEmail = contactEmail || settings.contactEmail;
-    settings.contactPhone = contactPhone || settings.contactPhone;
-
-    await settings.save();
     res.json(settings);
   } catch (error) {
     console.error("Error updating settings:", error);
