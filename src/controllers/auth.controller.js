@@ -701,22 +701,15 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
     // التحقق مما إذا كان المستخدم موجودًا بالفعل
     let user = null;
 
-    // البحث عن المستخدم باستخدام معرف Firebase أو Supabase أو معرف Google أو البريد الإلكتروني
-    if (uid) {
-      if (isSupabase) {
-        user = await User.findOne({ supabaseUid: uid });
-      } else {
-        user = await User.findOne({ firebaseUid: uid });
-      }
-    }
-
-    if (!user && googleId) {
-      user = await User.findOne({ googleId: googleId });
-    }
-
-    if (!user && email) {
-      user = await User.findOne({ email: email });
-    }
+    // البحث عن المستخدم بأي معرف أو بريد إلكتروني
+    user = await User.findOne({
+      $or: [
+        isSupabase && uid ? { supabaseUid: uid } : null,
+        !isSupabase && uid ? { firebaseUid: uid } : null,
+        googleId ? { googleId: googleId } : null,
+        email ? { email: email } : null,
+      ].filter(Boolean)
+    });
 
     if (user) {
       console.log("Existing user found:", user._id.toString());
