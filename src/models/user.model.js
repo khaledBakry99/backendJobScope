@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema(
         validator: function(v) {
           // إذا كان البريد الإلكتروني فارغًا، يجب أن يكون رقم الهاتف موجودًا
           return v === '' || v === undefined || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v) || (this.phone && this.phone.length > 0);
-        },,
+        },
         message: (props) => `${props.value} ليس بريدًا إلكترونيًا صالحًا`,
       },
     },
