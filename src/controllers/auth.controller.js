@@ -98,8 +98,46 @@ exports.register = asyncHandler(async (req, res) => {
     address,
     profilePicture: profilePicturePath,
   });
-
+  // توليد رمز تفعيل البريد الإلكتروني وتخزينه
+  const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+  user.emailVerificationToken = emailVerificationToken;
+  user.isActive = false;
+  user.emailVerified = false;
   await user.save();
+
+  // إرسال رسالة تفعيل البريد الإلكتروني
+  try {
+    const transporter = nodemailer.createTransport({
+      service: process.env.EMAIL_SERVICE || 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+    const activationLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/verify?token=${emailVerificationToken}&type=signup`;
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || 'JobScope <no-reply@jobscope.com>',
+      to: user.email,
+      subject: 'تفعيل حسابك في JobScope',
+      html: `
+        <div style="direction: rtl; font-family: Tahoma, Arial;">
+          <h2>مرحباً ${user.name || ''}،</h2>
+          <p>شكراً لتسجيلك في <b>JobScope</b>.</p>
+          <p>لتفعيل حسابك، يرجى الضغط على الرابط التالي:</p>
+          <a href="${activationLink}" style="color: #1976d2;">تفعيل الحساب</a>
+          <p style="margin-top: 16px; font-size: 13px; color: #888;">إذا لم تقم بإنشاء هذا الحساب، يمكنك تجاهل هذه الرسالة.</p>
+          <hr style="margin: 24px 0;">
+          <div style="font-size: 12px; color: #999;">هذه رسالة آلية، يرجى عدم الرد عليها.</div>
+        </div>
+      `,
+    };
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error('فشل إرسال رسالة التفعيل:', error);
+    return res.status(500).json({
+      message: 'حدث خطأ أثناء إرسال رسالة التفعيل. يرجى المحاولة لاحقاً.'
+    });
+  }
 
   // إذا كان المستخدم حرفيًا، قم بإنشاء ملف تعريف للحرفي
   if (userType === "craftsman") {
