@@ -79,7 +79,9 @@ const cancelExpiredBookings = async () => {
         },
       });
 
-    console.log(`📋 تم العثور على ${expiredBookings.length} طلب في حالة pending مع تاريخ ووقت انتهاء`);
+    console.log(
+      `📋 تم العثور على ${expiredBookings.length} طلب في حالة pending مع تاريخ ووقت انتهاء`
+    );
 
     let cancelledCount = 0;
 
@@ -88,14 +90,18 @@ const cancelExpiredBookings = async () => {
       const endDateTime = new Date(booking.endDate);
 
       // التحقق من صحة وقت الانتهاء
-      if (!booking.endTime || typeof booking.endTime !== 'string') {
-        console.log(`⚠️ وقت الانتهاء غير صحيح للطلب ${booking._id}: ${booking.endTime}`);
+      if (!booking.endTime || typeof booking.endTime !== "string") {
+        console.log(
+          `⚠️ وقت الانتهاء غير صحيح للطلب ${booking._id}: ${booking.endTime}`
+        );
         continue;
       }
 
       const timeParts = booking.endTime.split(":");
       if (timeParts.length !== 2) {
-        console.log(`⚠️ تنسيق وقت الانتهاء غير صحيح للطلب ${booking._id}: ${booking.endTime}`);
+        console.log(
+          `⚠️ تنسيق وقت الانتهاء غير صحيح للطلب ${booking._id}: ${booking.endTime}`
+        );
         continue;
       }
 
@@ -105,7 +111,9 @@ const cancelExpiredBookings = async () => {
       console.log(`📅 الطلب ${booking._id}:`);
       console.log(`   - تاريخ الانتهاء: ${booking.endDate}`);
       console.log(`   - وقت الانتهاء: ${booking.endTime}`);
-      console.log(`   - تاريخ ووقت الانتهاء المدمج: ${endDateTime.toISOString()}`);
+      console.log(
+        `   - تاريخ ووقت الانتهاء المدمج: ${endDateTime.toISOString()}`
+      );
       console.log(`   - هل انتهى؟ ${now > endDateTime}`);
 
       // التحقق من أن الوقت الحالي تجاوز وقت انتهاء الطلب
@@ -151,7 +159,9 @@ const cancelExpiredBookings = async () => {
           await craftsmanNotification.save();
         }
 
-        console.log(`✅ تم إلغاء الطلب ${booking._id} تلقائياً بسبب انتهاء الوقت`);
+        console.log(
+          `✅ تم إلغاء الطلب ${booking._id} تلقائياً بسبب انتهاء الوقت`
+        );
       }
     }
 
@@ -171,7 +181,15 @@ exports.createBooking = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { craftsmanId, date, time, endDate, endTime, location, description } = req.body;
+  const {
+    craftsmanId,
+    date,
+    time,
+    endDate,
+    endTime,
+    location,
+    description,
+  } = req.body;
 
   // Verificar que el artesano existe
   const craftsman = await Craftsman.findById(craftsmanId).populate("user");
@@ -231,7 +249,7 @@ exports.getMyBookings = asyncHandler(async (req, res) => {
   try {
     await cancelExpiredBookings();
   } catch (error) {
-    console.error('خطأ في فحص الطلبات المنتهية:', error);
+    console.error("خطأ في فحص الطلبات المنتهية:", error);
   }
 
   let bookings;
@@ -303,7 +321,7 @@ exports.getBookingById = asyncHandler(async (req, res) => {
   try {
     await cancelExpiredBookings();
   } catch (error) {
-    console.error('خطأ في فحص الطلبات المنتهية:', error);
+    console.error("خطأ في فحص الطلبات المنتهية:", error);
   }
 
   const booking = await Booking.findById(req.params.id)
@@ -447,36 +465,36 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
 
   await booking.save();
 
-  // Crear notificación
+  // Crear notificación para el cliente cuando el estado cambia
   let notificationType, title, message, icon;
   let recipientId;
 
   switch (status) {
     case "accepted":
       notificationType = "booking_accepted";
-      title = "Solicitud aceptada";
-      message = `Tu solicitud de servicio ha sido aceptada por ${booking.craftsman.user.name}`;
+      title = "تم قبول طلب الخدمة";
+      message = `تم قبول طلب الخدمة الخاص بك من قبل ${booking.craftsman.user.name}`;
       icon = "check-circle";
       recipientId = booking.client._id;
       break;
     case "rejected":
       notificationType = "booking_rejected";
-      title = "Solicitud rechazada";
-      message = `Tu solicitud de servicio ha sido rechazada por ${booking.craftsman.user.name}`;
+      title = "تم رفض طلب الخدمة";
+      message = `تم رفض طلب الخدمة الخاص بك من قبل ${booking.craftsman.user.name}`;
       icon = "x-circle";
       recipientId = booking.client._id;
       break;
     case "completed":
       notificationType = "booking_completed";
-      title = "Servicio completado";
-      message = `El servicio ha sido marcado como completado por ${booking.craftsman.user.name}`;
+      title = "تم إكمال الخدمة";
+      message = `تم إكمال الخدمة من قبل ${booking.craftsman.user.name}`;
       icon = "check-square";
       recipientId = booking.client._id;
       break;
     case "cancelled":
       notificationType = "booking_cancelled";
-      title = "Reserva cancelada";
-      message = `La reserva ha sido cancelada por ${booking.client.name}`;
+      title = "تم إلغاء طلب الخدمة";
+      message = `تم إلغاء طلب الخدمة من قبل ${booking.client.name}`;
       icon = "x-square";
       recipientId = booking.craftsman.user._id;
       break;
@@ -495,6 +513,7 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
     });
 
     await notification.save();
+    console.log(`تم إنشاء إشعار: ${title} للمستخدم ${recipientId}`);
   }
 
   res.json(booking);
