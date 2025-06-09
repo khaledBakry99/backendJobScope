@@ -182,6 +182,7 @@ app.use("/api/requests", require("./routes/request.routes"));
 app.use("/api/working-hours", require("./routes/workingHours.routes"));
 app.use("/api/settings", require("./routes/settings.routes"));
 app.use("/api/admin/settings", require("./routes/adminSettings.routes"));
+app.use("/api/notifications", require("./routes/notification.routes"));
 
 // مسار الاختبار
 app.get("/", (_req, res) => {
