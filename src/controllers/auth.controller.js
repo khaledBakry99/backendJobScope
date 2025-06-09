@@ -176,7 +176,8 @@ exports.register = asyncHandler(async (req, res) => {
 
   // إذا كان المستخدم حرفيًا، قم بدمج معلومات الحرفي مع معلومات المستخدم
   let userData = {
-    id: user._id,
+    id: user._id?.toString() || user.id,
+    _id: user._id?.toString() || user.id,
     name: user.name,
     email: user.email,
     phone: user.phone,
@@ -204,7 +205,11 @@ exports.register = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     token,
-    user: userData,
+    user: {
+      ...userData,
+      id: userData.id,
+      _id: userData._id
+    },
     expiresIn,
   });
 });
@@ -271,7 +276,8 @@ exports.login = asyncHandler(async (req, res) => {
 
   // إذا كان المستخدم حرفيًا، قم بدمج معلومات الحرفي مع معلومات المستخدم
   let userData = {
-    id: user._id,
+    id: user._id?.toString() || user.id,
+    _id: user._id?.toString() || user.id,
     name: user.name,
     email: user.email,
     phone: user.phone,
@@ -300,7 +306,11 @@ exports.login = asyncHandler(async (req, res) => {
 
   res.json({
     token,
-    user: userData,
+    user: {
+      ...userData,
+      id: userData.id,
+      _id: userData._id
+    },
     expiresIn,
   });
 });
@@ -353,7 +363,11 @@ exports.getCurrentUser = asyncHandler(async (req, res) => {
   }
 
   res.json({
-    user: userData,
+    user: {
+      ...userData,
+      id: userData.id,
+      _id: userData._id
+    },
   });
 });
 
@@ -658,7 +672,8 @@ exports.verifyEmail = asyncHandler(async (req, res) => {
   // أعد التوكن وبيانات المستخدم
   const jwtToken = generateToken(user._id, user.userType);
   let userData = {
-    id: user._id,
+    id: user._id?.toString() || user.id,
+    _id: user._id?.toString() || user.id,
     name: user.name,
     email: user.email,
     phone: user.phone,
@@ -828,7 +843,11 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
 
     res.status(201).json({
       token,
-      user: userData,
+      user: {
+      ...userData,
+      id: userData.id,
+      _id: userData._id
+    },
       expiresIn: "30d",
     });
   } catch (error) {
