@@ -81,7 +81,34 @@ const craftsmanSchema = new mongoose.Schema(
     },
     workGallery: [
       {
-        type: String,
+        id: {
+          type: String,
+          required: true,
+        },
+        url: {
+          type: String,
+          required: true,
+        },
+        thumb: {
+          type: String,
+          required: true,
+        },
+        medium: {
+          type: String,
+          required: true,
+        },
+        filename: {
+          type: String,
+          required: true,
+        },
+        size: {
+          type: Number,
+          default: 0,
+        },
+        uploadedAt: {
+          type: Date,
+          default: Date.now,
+        },
       },
     ],
     rating: {
