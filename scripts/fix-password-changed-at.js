@@ -67,6 +67,6 @@ const runScript = async () => {
   await mongoose.connection.close();
   console.log('تم إنهاء السكريبت');
   process.exit(0);
-};
+}
 
 runScript();
