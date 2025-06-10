@@ -170,7 +170,7 @@ exports.register = asyncHandler(async (req, res) => {
   let craftsmanInfo = null;
   if (user.userType === "craftsman") {
     craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
-      "professions specializations workRadius location bio workGallery streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange available"
+      "professions specializations workRadius location bio workGallery streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange available workingHours workingHoursArray"
     );
   }
 
@@ -253,7 +253,7 @@ exports.login = asyncHandler(async (req, res) => {
   let craftsmanInfo = null;
   if (user.userType === "craftsman") {
     craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
-      "professions specializations workRadius location bio features workGallery streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange available"
+      "professions specializations workRadius location bio features workGallery streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange available workingHours workingHoursArray"
     );
   }
 
@@ -278,6 +278,8 @@ exports.login = asyncHandler(async (req, res) => {
       features: craftsmanInfo.features || [],
       gallery: craftsmanInfo.workGallery || [], // إضافة معرض الصور
       workGallery: craftsmanInfo.workGallery || [], // إضافة معرض الأعمال للتوافق مع الباك إند
+      workingHours: craftsmanInfo.workingHours || {},
+      workingHoursArray: craftsmanInfo.workingHoursArray || [],
       available: craftsmanInfo.available, // إضافة حالة التوفر
       streetsInWorkRange: craftsmanInfo.streetsInWorkRange,
       hospitalsInWorkRange: craftsmanInfo.hospitalsInWorkRange,
@@ -305,7 +307,7 @@ exports.getCurrentUser = asyncHandler(async (req, res) => {
   let craftsmanInfo = null;
   if (user.userType === "craftsman") {
     craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
-      "professions specializations workRadius location bio features workingHours workGallery streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange available"
+      "professions specializations workRadius location bio features workingHours workingHoursArray workGallery streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange available"
     );
   }
 
@@ -332,6 +334,7 @@ exports.getCurrentUser = asyncHandler(async (req, res) => {
       gallery: craftsmanInfo.workGallery || [], // إضافة معرض الصور
       workGallery: craftsmanInfo.workGallery || [], // إضافة معرض الأعمال للتوافق مع الباك إند
       workingHours: craftsmanInfo.workingHours || {},
+      workingHoursArray: craftsmanInfo.workingHoursArray || [],
       available: craftsmanInfo.available, // إضافة حالة التوفر
       streetsInWorkRange: craftsmanInfo.streetsInWorkRange,
       hospitalsInWorkRange: craftsmanInfo.hospitalsInWorkRange,
@@ -739,7 +742,7 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
     let craftsmanInfo = null;
     if (user.userType === "craftsman") {
       craftsmanInfo = await Craftsman.findOne({ user: user._id }).select(
-        "professions specializations workRadius location bio features streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange"
+        "professions specializations workRadius location bio features workingHours workingHoursArray streetsInWorkRange hospitalsInWorkRange mosquesInWorkRange neighborhoodsInWorkRange"
       );
     }
 
@@ -763,6 +766,8 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
         location: craftsmanInfo.location,
         bio: craftsmanInfo.bio,
         features: craftsmanInfo.features || [],
+        workingHours: craftsmanInfo.workingHours || {},
+        workingHoursArray: craftsmanInfo.workingHoursArray || [],
         streetsInWorkRange: craftsmanInfo.streetsInWorkRange,
         hospitalsInWorkRange: craftsmanInfo.hospitalsInWorkRange,
         mosquesInWorkRange: craftsmanInfo.mosquesInWorkRange,
