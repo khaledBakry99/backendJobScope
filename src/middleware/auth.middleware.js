@@ -28,9 +28,13 @@ exports.protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     let user;
-    if (decoded.userType === 'admin') {
-      const Admin = require('../models/Admin.js');
+    // التحقق من الأدمن بناءً على userType أو role
+    if (decoded.userType === "admin" || decoded.role === "admin") {
+      const Admin = require("../models/Admin.js");
       user = await Admin.findById(decoded.id);
+      if (user) {
+        user.userType = "admin"; // إضافة userType للتوافق
+      }
     } else {
       user = await User.findById(decoded.id).select("-password");
     }
@@ -41,15 +45,15 @@ exports.protect = async (req, res, next) => {
       });
     }
 
-    // التحقق مما إذا كان المستخدم نشطًا
-    if (!user.isActive) {
+    // التحقق مما إذا كان المستخدم نشطًا (فقط للمستخدمين العاديين)
+    if (user.userType !== "admin" && !user.isActive) {
       return res.status(401).json({
         message: "تم تعطيل حسابك",
       });
     }
 
-    // التحقق من تاريخ تغيير كلمة المرور لإبطال الجلسات القديمة
-    if (user.passwordChangedAt) {
+    // التحقق من تاريخ تغيير كلمة المرور لإبطال الجلسات القديمة (فقط للمستخدمين العاديين)
+    if (user.userType !== "admin" && user.passwordChangedAt) {
       const tokenIssuedAt = new Date(decoded.iat * 1000); // تحويل من Unix timestamp إلى Date
       if (user.passwordChangedAt > tokenIssuedAt) {
         return res.status(401).json({
