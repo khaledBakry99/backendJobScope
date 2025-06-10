@@ -176,8 +176,7 @@ exports.register = asyncHandler(async (req, res) => {
 
   // إذا كان المستخدم حرفيًا، قم بدمج معلومات الحرفي مع معلومات المستخدم
   let userData = {
-    id: user._id?.toString() || user.id,
-    _id: user._id?.toString() || user.id,
+    id: user._id,
     name: user.name,
     email: user.email,
     phone: user.phone,
@@ -205,11 +204,7 @@ exports.register = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     token,
-    user: {
-      ...userData,
-      id: userData.id,
-      _id: userData._id
-    },
+    user: userData,
     expiresIn,
   });
 });
@@ -222,7 +217,7 @@ exports.login = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { email, password, rememberMe, userType } = req.body; // userType is the intended role from frontend
+  const { email, password, rememberMe } = req.body;
 
   // البحث عن المستخدم عن طريق البريد الإلكتروني أو رقم الهاتف
   const user = await User.findOne({
@@ -237,18 +232,6 @@ exports.login = asyncHandler(async (req, res) => {
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     return res.status(401).json({ message: "بيانات الاعتماد غير صالحة" });
-  }
-
-  // تحقق من تطابق نوع الحساب المطلوب مع نوع المستخدم الفعلي
-  if (userType && userType !== user.userType) {
-    // إذا كان المستخدم حرفي وحاول الدخول كطالب خدمة
-    if (user.userType === "craftsman" && userType === "client") {
-      return res.status(403).json({ message: "أنت حرفي، لا يمكنك تسجيل الدخول كطالب خدمة" });
-    } else if (user.userType === "client" && userType === "craftsman") {
-      return res.status(403).json({ message: "أنت طالب خدمة، لا يمكنك تسجيل الدخول كحرفي" });
-    } else {
-      return res.status(403).json({ message: "نوع الحساب غير متوافق مع بياناتك" });
-    }
   }
 
   // التحقق مما إذا كان المستخدم نشطًا
@@ -276,8 +259,7 @@ exports.login = asyncHandler(async (req, res) => {
 
   // إذا كان المستخدم حرفيًا، قم بدمج معلومات الحرفي مع معلومات المستخدم
   let userData = {
-    id: user._id?.toString() || user.id,
-    _id: user._id?.toString() || user.id,
+    id: user._id,
     name: user.name,
     email: user.email,
     phone: user.phone,
@@ -306,11 +288,7 @@ exports.login = asyncHandler(async (req, res) => {
 
   res.json({
     token,
-    user: {
-      ...userData,
-      id: userData.id,
-      _id: userData._id
-    },
+    user: userData,
     expiresIn,
   });
 });
@@ -363,11 +341,7 @@ exports.getCurrentUser = asyncHandler(async (req, res) => {
   }
 
   res.json({
-    user: {
-      ...userData,
-      id: userData.id,
-      _id: userData._id
-    },
+    user: userData,
   });
 });
 
@@ -633,56 +607,6 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
   });
 });
 
-// تفعيل البريد الإلكتروني
-exports.verifyEmail = asyncHandler(async (req, res) => {
-  const { token, type } = req.body;
-  // تحقق من صحة البيانات
-  if (!token || !type) {
-    return res.status(400).json({ message: "رابط التفعيل غير صالح" });
-  }
-
-  // ابحث عن المستخدم باستخدام التوكن (مثال: إذا كنت تخزن رمز التفعيل في قاعدة البيانات)
-  // إذا كنت تستخدم Supabase أو طرف ثالث، هنا تحقق من التوكن عبر API
-  // هنا سنفترض أنك تخزن رمز التفعيل مع المستخدم
-  const user = await User.findOne({ emailVerificationToken: token });
-  if (!user) {
-    return res.status(400).json({ message: "رابط التفعيل منتهي أو غير صالح" });
-  }
-
-  if (user.isActive) {
-    // إذا كان مفعل مسبقًا
-    const jwtToken = generateToken(user._id, user.userType);
-    let userData = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      userType: user.userType,
-      profilePicture: user.profilePicture,
-    };
-    return res.json({ token: jwtToken, user: userData });
-  }
-
-  // فعل الحساب
-  user.isActive = true;
-  user.emailVerified = true;
-  user.emailVerificationToken = undefined;
-  await user.save();
-
-  // أعد التوكن وبيانات المستخدم
-  const jwtToken = generateToken(user._id, user.userType);
-  let userData = {
-    id: user._id?.toString() || user.id,
-    _id: user._id?.toString() || user.id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    userType: user.userType,
-    profilePicture: user.profilePicture,
-  };
-  res.json({ token: jwtToken, user: userData });
-});
-
 // تسجيل مستخدم تم إنشاؤه باستخدام Firebase أو Supabase
 exports.registerFirebaseUser = asyncHandler(async (req, res) => {
   const {
@@ -716,15 +640,22 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
     // التحقق مما إذا كان المستخدم موجودًا بالفعل
     let user = null;
 
-    // البحث عن المستخدم بأي معرف أو بريد إلكتروني
-    user = await User.findOne({
-      $or: [
-        isSupabase && uid ? { supabaseUid: uid } : null,
-        !isSupabase && uid ? { firebaseUid: uid } : null,
-        googleId ? { googleId: googleId } : null,
-        email ? { email: email } : null,
-      ].filter(Boolean)
-    });
+    // البحث عن المستخدم باستخدام معرف Firebase أو Supabase أو معرف Google أو البريد الإلكتروني
+    if (uid) {
+      if (isSupabase) {
+        user = await User.findOne({ supabaseUid: uid });
+      } else {
+        user = await User.findOne({ firebaseUid: uid });
+      }
+    }
+
+    if (!user && googleId) {
+      user = await User.findOne({ googleId: googleId });
+    }
+
+    if (!user && email) {
+      user = await User.findOne({ email: email });
+    }
 
     if (user) {
       console.log("Existing user found:", user._id.toString());
@@ -843,11 +774,7 @@ exports.registerFirebaseUser = asyncHandler(async (req, res) => {
 
     res.status(201).json({
       token,
-      user: {
-      ...userData,
-      id: userData.id,
-      _id: userData._id
-    },
+      user: userData,
       expiresIn: "30d",
     });
   } catch (error) {

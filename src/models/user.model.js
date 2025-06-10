@@ -14,11 +14,11 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       sparse: true,
       index: true,
-      // السماح للبريد الإلكتروني أن يكون فارغًا إذا كان رقم الهاتف موجودًا
+      // السماح بالبريد الإلكتروني الفارغ للمستخدمين الذين يسجلون باستخدام رقم الهاتف فقط
       validate: {
         validator: function(v) {
-          // إذا كان البريد الإلكتروني فارغًا، يجب أن يكون رقم الهاتف موجودًا
-          return v === '' || v === undefined || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v) || (this.phone && this.phone.length > 0);
+          // إذا كان البريد الإلكتروني فارغًا، تحقق من وجود رقم هاتف أو معرف Firebase
+          return !v || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
         },
         message: (props) => `${props.value} ليس بريدًا إلكترونيًا صالحًا`,
       },

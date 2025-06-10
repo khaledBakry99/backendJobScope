@@ -50,14 +50,13 @@ exports.protect = async (req, res, next) => {
 
     // التحقق من تاريخ تغيير كلمة المرور لإبطال الجلسات القديمة
     if (user.passwordChangedAt) {
-      const tokenIssuedAt = new Date(decoded.iat * 1000);    // التحقق من صلاحية التوكن وتاريخ تغيير كلمة المرور فقط إذا لم يكن المستخدم من نوع المصادقة الخارجية
-      const isExternalAuth = user.firebaseUid || user.supabaseUid || user.googleId;
-      if (!isExternalAuth && user.passwordChangedAt > tokenIssuedAt) {
+      const tokenIssuedAt = new Date(decoded.iat * 1000); // تحويل من Unix timestamp إلى Date
+      if (user.passwordChangedAt > tokenIssuedAt) {
         return res.status(401).json({
           message: "تم تغيير كلمة المرور. يرجى تسجيل الدخول مرة أخرى",
           requireReauth: true,
         });
-      } // إذا كان المستخدم خارجي المصادقة، لا تطبق شرط كلمة المرور
+      }
     }
 
     // إضافة المستخدم إلى الطلب

@@ -90,9 +90,6 @@ router.post("/send-otp-phone", authController.sendOtpToPhone);
 // التحقق من صحة رمز التحقق
 router.post("/verify-otp", authController.verifyOtp);
 
-// تفعيل البريد الإلكتروني
-router.post("/verify-email", authController.verifyEmail);
-
 // تسجيل مستخدم تم إنشاؤه باستخدام Firebase
 router.post("/register-firebase", authController.registerFirebaseUser);
 
