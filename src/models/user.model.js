@@ -83,7 +83,7 @@ const userSchema = new mongoose.Schema(
     },
     passwordChangedAt: {
       type: Date,
-      default: Date.now,
+      // لا نضع default لأن هذا يجب أن يتم تعيينه فقط عند تغيير كلمة المرور
     },
   },
   {
