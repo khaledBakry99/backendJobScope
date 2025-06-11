@@ -662,6 +662,15 @@ exports.updateWorkGallery = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
+  // التحقق من وجود req.user
+  if (!req.user) {
+    console.error("req.user غير معرف في updateWorkGallery");
+    return res.status(401).json({
+      message: "Usuario no autenticado",
+      error: "req.user is undefined",
+    });
+  }
+
   const { workGallery } = req.body;
 
   console.log("Solicitud de actualización de galería recibida:", {

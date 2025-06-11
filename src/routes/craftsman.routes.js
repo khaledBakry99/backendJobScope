@@ -77,14 +77,24 @@ router.put(
 // Actualizar galería de trabajos
 router.put(
   "/me/gallery",
+  protect,
   authorize("craftsman"),
   [check("workGallery", "La galería debe ser un array").isArray()],
   craftsmanController.updateWorkGallery
 );
 
 // Obtener galería de trabajos del artesano actual
-router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
+router.get("/me/gallery", protect, authorize("craftsman"), async (req, res) => {
   try {
+    // التحقق من وجود req.user
+    if (!req.user) {
+      console.error("req.user غير معرف في /me/gallery");
+      return res.status(401).json({
+        message: "Usuario no autenticado",
+        error: "req.user is undefined",
+      });
+    }
+
     // Imprimir información de depuración del usuario
     console.log("Usuario autenticado en /me/gallery:", {
       id: req.user.id,
@@ -128,17 +138,24 @@ router.get("/me/gallery", authorize("craftsman"), async (req, res) => {
 
     // Filtrar URLs vacías o inválidas
     const validGallery = Array.isArray(craftsman.workGallery)
-      ? craftsman.workGallery.filter(url => url && url !== "undefined" && url !== "null")
+      ? craftsman.workGallery.filter(
+          (url) => url && url !== "undefined" && url !== "null"
+        )
       : [];
 
     console.log("Galería filtrada en /me/gallery:", {
       original: craftsman.workGallery ? craftsman.workGallery.length : 0,
-      filtered: validGallery.length
+      filtered: validGallery.length,
     });
 
     // Si hay diferencia entre la galería original y la filtrada, actualizar en la base de datos
-    if (validGallery.length !== (craftsman.workGallery ? craftsman.workGallery.length : 0)) {
-      console.log("Actualizando galería en la base de datos después de filtrar");
+    if (
+      validGallery.length !==
+      (craftsman.workGallery ? craftsman.workGallery.length : 0)
+    ) {
+      console.log(
+        "Actualizando galería en la base de datos después de filtrar"
+      );
       craftsman.workGallery = validGallery;
       await craftsman.save();
     }
@@ -183,7 +200,7 @@ router.post(
     try {
       console.log("Solicitud de carga de imágenes recibida:", {
         files: req.files ? req.files.length : 0,
-        userId: req.user.id || req.user._id
+        userId: req.user.id || req.user._id,
       });
 
       if (!req.files || req.files.length === 0) {
@@ -215,19 +232,23 @@ router.post(
 
       if (!craftsman) {
         console.log("Perfil de artesano no encontrado con ningún ID");
-        return res.status(404).json({ message: "Perfil de artesano no encontrado" });
+        return res
+          .status(404)
+          .json({ message: "Perfil de artesano no encontrado" });
       }
 
       // Obtener la galería actual y asegurarse de que sea un array
       let currentGallery = [];
       if (craftsman.workGallery && Array.isArray(craftsman.workGallery)) {
         // Filtrar URLs vacías o inválidas
-        currentGallery = craftsman.workGallery.filter(url => url && url !== "undefined" && url !== "null");
+        currentGallery = craftsman.workGallery.filter(
+          (url) => url && url !== "undefined" && url !== "null"
+        );
       }
 
       console.log("Galería actual antes de la actualización:", {
         currentGalleryLength: currentGallery.length,
-        currentGalleryItems: currentGallery
+        currentGalleryItems: currentGallery,
       });
 
       // Combinar la galería actual con las nuevas imágenes
@@ -237,7 +258,7 @@ router.post(
         currentGallery: currentGallery.length,
         newImages: imageUrls.length,
         updatedGallery: updatedGallery.length,
-        updatedGalleryItems: updatedGallery
+        updatedGalleryItems: updatedGallery,
       });
 
       // Guardar la galería actualizada
@@ -246,21 +267,21 @@ router.post(
 
       console.log("Galería guardada en la base de datos:", {
         savedGalleryLength: craftsman.workGallery.length,
-        savedGalleryItems: craftsman.workGallery
+        savedGalleryItems: craftsman.workGallery,
       });
 
       // Devolver las URLs de las imágenes y la galería actualizada
       res.json({
         imageUrls,
         gallery: craftsman.workGallery,
-        workGallery: craftsman.workGallery
+        workGallery: craftsman.workGallery,
       });
     } catch (error) {
       console.error("Error al subir imágenes:", error);
       res.status(500).json({
         message: "Error al subir imágenes",
         error: error.message,
-        stack: error.stack
+        stack: error.stack,
       });
     }
   }

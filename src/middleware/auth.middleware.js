@@ -76,6 +76,15 @@ exports.protect = async (req, res, next) => {
 // وسيط للتحقق من الأدوار
 exports.authorize = (...roles) => {
   return (req, res, next) => {
+    // التحقق من وجود req.user أولاً
+    if (!req.user) {
+      console.error("authorize middleware: req.user غير معرف");
+      return res.status(401).json({
+        message: "غير مصرح لك بالوصول إلى هذا المورد",
+        error: "req.user is undefined in authorize middleware",
+      });
+    }
+
     if (!roles.includes(req.user.userType)) {
       return res.status(403).json({
         message: `الدور ${req.user.userType} غير مصرح له بالوصول إلى هذا المورد`,
