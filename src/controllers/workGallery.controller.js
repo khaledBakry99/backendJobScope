@@ -114,9 +114,14 @@ exports.getMyWorkGallery = asyncHandler(async (req, res) => {
 
     // البحث عن الحرفي باستخدام معرف المستخدم
     console.log("getMyWorkGallery - req.user:", req.user);
-    const craftsman = await Craftsman.findOne({ user: req.user._id }).select(
-      "workGallery"
-    );
+    console.log("بحث عن الحرفي بـ user:", req.user._id, typeof req.user._id);
+    let craftsman = null;
+    try {
+      craftsman = await Craftsman.findOne({ user: mongoose.Types.ObjectId(req.user._id) }).select("workGallery");
+    } catch (err) {
+      console.error("خطأ في تحويل req.user._id إلى ObjectId أو في البحث:", err);
+      return res.status(500).json({ message: "خطأ في البحث عن الحرفي: مشكلة في ObjectId للمستخدم", error: err.message });
+    }
     console.log("getMyWorkGallery - نتيجة البحث عن الحرفي:", craftsman);
 
     if (!craftsman) {
