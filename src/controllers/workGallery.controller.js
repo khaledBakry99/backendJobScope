@@ -7,11 +7,13 @@ const mongoose = require("mongoose");
  */
 exports.normalizeGalleryData = function normalizeGalleryData(galleryData) {
   if (!Array.isArray(galleryData)) {
+    console.warn("normalizeGalleryData: galleryData ليس مصفوفة! القيمة:", galleryData);
     return [];
   }
 
   return galleryData
     .map((item, index) => {
+      console.log(`normalizeGalleryData: معالجة العنصر رقم ${index}:`, item, "(النوع:", typeof item, ")");
       // إذا كان العنصر string (رابط مباشر)
       if (typeof item === "string") {
         return {
@@ -27,6 +29,11 @@ exports.normalizeGalleryData = function normalizeGalleryData(galleryData) {
 
       // إذا كان العنصر object
       if (typeof item === "object" && item !== null) {
+        // حماية إضافية: تأكد من وجود url أو display_url
+        if (!item.url && !item.display_url) {
+          console.warn(`normalizeGalleryData: كائن بدون url أو display_url عند الفهرس ${index}:`, item);
+          return null;
+        }
         const normalizedItem = {
           id: item.id || item._id || `object_${index}`,
           url: item.url || item.display_url || "",
@@ -48,7 +55,8 @@ exports.normalizeGalleryData = function normalizeGalleryData(galleryData) {
         return normalizedItem;
       }
 
-      // إذا كان العنصر غير صالح، تجاهله
+      // إذا كان العنصر غير صالح (null أو نوع غير متوقع)
+      console.warn(`normalizeGalleryData: عنصر غير متوقع عند الفهرس ${index}:`, item, "(النوع:", typeof item, ")");
       return null;
     })
     .filter((item) => item !== null && item.url); // تصفية العناصر الفارغة
