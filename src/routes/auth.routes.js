@@ -12,7 +12,20 @@ router.post(
     check("name", "الاسم مطلوب")
       .not()
       .isEmpty(),
-    check("email", "يرجى إدخال بريد إلكتروني صالح").isEmail(),
+    // Require either email or phone, and validate each if present
+    check("email")
+      .optional({ nullable: true })
+      .isEmail().withMessage("يرجى إدخال بريد إلكتروني صالح"),
+    check("phone")
+      .optional({ nullable: true })
+      .matches(/^\+?\d{7,15}$/).withMessage("يرجى إدخال رقم هاتف صالح"),
+    // Custom validator: require at least one of email or phone
+    (req, res, next) => {
+      if (!req.body.email && !req.body.phone) {
+        return res.status(400).json({ message: "يرجى إدخال البريد الإلكتروني أو رقم الهاتف" });
+      }
+      next();
+    },
     check("password", "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل").isLength({
       min: 6,
     }),
