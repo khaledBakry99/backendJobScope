@@ -113,17 +113,15 @@ exports.getMyWorkGallery = asyncHandler(async (req, res) => {
     );
 
     // البحث عن الحرفي باستخدام معرف المستخدم
+    console.log("getMyWorkGallery - req.user:", req.user);
     const craftsman = await Craftsman.findOne({ user: req.user._id }).select(
       "workGallery"
     );
-
-    console.log(
-      "getMyWorkGallery - نتيجة البحث عن الحرفي:",
-      craftsman ? "تم العثور عليه" : "لم يتم العثور عليه"
-    );
+    console.log("getMyWorkGallery - نتيجة البحث عن الحرفي:", craftsman);
 
     if (!craftsman) {
-      return res.status(404).json({ message: "لم يتم العثور على ملف الحرفي" });
+      console.error("getMyWorkGallery - لم يتم العثور على كائن الحرفي لهذا المستخدم!", req.user);
+      return res.status(404).json({ message: "لم يتم العثور على ملف الحرفي لهذا المستخدم. تأكد من أن عملية التسجيل أنشأت كائن الحرفي بشكل صحيح." });
     }
 
     // تطبيع البيانات للتوافق مع الفرونت إند
