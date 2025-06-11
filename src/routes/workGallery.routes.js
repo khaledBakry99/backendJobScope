@@ -10,18 +10,43 @@ const workGalleryController = require("../controllers/workGallery.controller");
 router.get("/craftsman/:craftsmanId", workGalleryController.getWorkGallery);
 
 // الحصول على معرض أعمال الحرفي الحالي (يحتاج مصادقة)
-router.get("/my-gallery", protect, isCraftsman, workGalleryController.getMyWorkGallery);
+router.get(
+  "/my-gallery",
+  protect,
+  isCraftsman,
+  workGalleryController.getMyWorkGallery
+);
 
 // إضافة صور إلى معرض الأعمال (يحتاج مصادقة كحرفي)
-router.post("/add", protect, isCraftsman, workGalleryController.addToWorkGallery);
+router.post(
+  "/add",
+  protect,
+  isCraftsman,
+  workGalleryController.addToWorkGallery
+);
 
 // حذف صورة من معرض الأعمال (يحتاج مصادقة كحرفي)
-router.delete("/remove", protect, isCraftsman, workGalleryController.removeFromWorkGallery);
+router.delete(
+  "/remove",
+  protect,
+  isCraftsman,
+  workGalleryController.removeFromWorkGallery
+);
 
 // تحديث ترتيب الصور في معرض الأعمال (يحتاج مصادقة كحرفي)
-router.put("/reorder", protect, isCraftsman, workGalleryController.reorderWorkGallery);
+router.put(
+  "/reorder",
+  protect,
+  isCraftsman,
+  workGalleryController.reorderWorkGallery
+);
 
 // مسح معرض الأعمال بالكامل (يحتاج مصادقة كحرفي)
-router.delete("/clear", protect, isCraftsman, workGalleryController.clearWorkGallery);
+router.delete(
+  "/clear",
+  protect,
+  isCraftsman,
+  workGalleryController.clearWorkGallery
+);
 
 module.exports = router;
