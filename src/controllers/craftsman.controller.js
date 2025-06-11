@@ -720,11 +720,20 @@ exports.updateWorkGallery = asyncHandler(async (req, res) => {
     craftsmanObj.image = "/img/user-avatar.svg";
   }
 
-  // إضافة معرض الأعمال للاستجابة بكلا الاسمين للتوافق
-  craftsmanObj.gallery = craftsman.workGallery;
-  craftsmanObj.workGallery = craftsman.workGallery;
+  // استخدام دالة التطبيع من workGallery controller
+  const { normalizeGalleryData } = require("./workGallery.controller");
+  const normalizedGallery = normalizeGalleryData(craftsman.workGallery || []);
 
-  res.json(craftsmanObj);
+  // إضافة معرض الأعمال للاستجابة بكلا الاسمين للتوافق
+  craftsmanObj.gallery = normalizedGallery;
+  craftsmanObj.workGallery = normalizedGallery;
+
+  res.json({
+    success: true,
+    craftsman: craftsmanObj,
+    workGallery: normalizedGallery,
+    count: normalizedGallery.length,
+  });
 });
 
 // Actualizar disponibilidad
@@ -810,32 +819,21 @@ exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
       workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0,
     });
 
-    // تصفية أي مسارات فارغة أو غير صالحة
-    const validGallery = Array.isArray(craftsman.workGallery)
-      ? craftsman.workGallery.filter(
-          (url) => url && url !== "undefined" && url !== "null"
-        )
-      : [];
+    // استخدام دالة التطبيع من workGallery controller
+    const { normalizeGalleryData } = require("./workGallery.controller");
+    const normalizedGallery = normalizeGalleryData(craftsman.workGallery || []);
 
-    console.log("معرض الصور بعد التصفية:", {
+    console.log("معرض الصور بعد التطبيع:", {
       original: craftsman.workGallery ? craftsman.workGallery.length : 0,
-      filtered: validGallery.length,
+      normalized: normalizedGallery.length,
     });
-
-    // إذا كان هناك اختلاف بين المعرض الأصلي والمعرض المصفى، قم بتحديث المعرض في قاعدة البيانات
-    if (
-      validGallery.length !==
-      (craftsman.workGallery ? craftsman.workGallery.length : 0)
-    ) {
-      console.log("تحديث معرض الصور في قاعدة البيانات بعد التصفية");
-      craftsman.workGallery = validGallery;
-      await craftsman.save();
-    }
 
     // إرجاع معرض الأعمال مع دعم الاسمين (gallery و workGallery) للتوافق
     res.json({
-      gallery: validGallery,
-      workGallery: validGallery,
+      success: true,
+      gallery: normalizedGallery,
+      workGallery: normalizedGallery,
+      count: normalizedGallery.length,
     });
   } catch (error) {
     console.error("خطأ في الحصول على معرض الأعمال:", error);

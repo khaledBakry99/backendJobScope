@@ -81,34 +81,8 @@ const craftsmanSchema = new mongoose.Schema(
     },
     workGallery: [
       {
-        id: {
-          type: String,
-          required: true,
-        },
-        url: {
-          type: String,
-          required: true,
-        },
-        thumb: {
-          type: String,
-          required: true,
-        },
-        medium: {
-          type: String,
-          required: true,
-        },
-        filename: {
-          type: String,
-          required: true,
-        },
-        size: {
-          type: Number,
-          default: 0,
-        },
-        uploadedAt: {
-          type: Date,
-          default: Date.now,
-        },
+        type: mongoose.Schema.Types.Mixed, // يدعم كلا من String و Object
+        default: [],
       },
     ],
     rating: {
