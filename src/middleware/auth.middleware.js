@@ -5,27 +5,47 @@ const User = require("../models/user.model");
 exports.protect = async (req, res, next) => {
   let token;
 
+  console.log("protect middleware - بدء التحقق من المصادقة:", {
+    path: req.originalUrl,
+    method: req.method,
+    headers: {
+      authorization: req.headers.authorization ? "موجود" : "غير موجود",
+      cookie: req.headers.cookie ? "موجود" : "غير موجود",
+    },
+  });
+
   // التحقق مما إذا كان هناك رمز مميز في الرؤوس
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer")
   ) {
     token = req.headers.authorization.split(" ")[1];
+    console.log(
+      "protect middleware - تم العثور على التوكن في Authorization header"
+    );
   } else if (req.cookies && req.cookies.token) {
     // التحقق من وجود الرمز المميز في ملفات تعريف الارتباط
     token = req.cookies.token;
+    console.log("protect middleware - تم العثور على التوكن في cookies");
   }
 
   // التحقق مما إذا كان الرمز المميز موجودًا
   if (!token) {
+    console.log("protect middleware - لا يوجد توكن");
     return res.status(401).json({
       message: "غير مصرح لك بالوصول إلى هذا المورد",
     });
   }
 
   try {
+    console.log("protect middleware - محاولة التحقق من التوكن");
     // التحقق من الرمز المميز
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("protect middleware - تم فك تشفير التوكن بنجاح:", {
+      id: decoded.id,
+      userType: decoded.userType,
+      role: decoded.role,
+    });
 
     let user;
     // التحقق من الأدمن بناءً على userType أو role
@@ -36,10 +56,22 @@ exports.protect = async (req, res, next) => {
         user.userType = "admin"; // إضافة userType للتوافق
       }
     } else {
+      console.log(
+        "protect middleware - البحث عن مستخدم عادي بالمعرف:",
+        decoded.id
+      );
       user = await User.findById(decoded.id).select("-password");
+      if (user) {
+        console.log("protect middleware - تم العثور على المستخدم:", {
+          id: user._id,
+          name: user.name,
+          userType: user.userType,
+        });
+      }
     }
 
     if (!user) {
+      console.log("protect middleware - لم يتم العثور على المستخدم");
       return res.status(401).json({
         message: "المستخدم لم يعد موجودًا",
       });
@@ -65,10 +97,20 @@ exports.protect = async (req, res, next) => {
 
     // إضافة المستخدم إلى الطلب
     req.user = user;
+    console.log("protect middleware - تم تعيين req.user بنجاح:", {
+      id: req.user._id,
+      name: req.user.name,
+      userType: req.user.userType,
+    });
     next();
   } catch (error) {
+    console.error(
+      "protect middleware - خطأ في التحقق من التوكن:",
+      error.message
+    );
     return res.status(401).json({
       message: "الرمز المميز غير صالح أو منتهي الصلاحية",
+      error: error.message,
     });
   }
 };
