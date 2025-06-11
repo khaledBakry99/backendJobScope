@@ -97,9 +97,29 @@ exports.getWorkGallery = asyncHandler(async (req, res) => {
  */
 exports.getMyWorkGallery = asyncHandler(async (req, res) => {
   try {
+    console.log("getMyWorkGallery - req.user:", req.user);
+
+    // التحقق من وجود req.user
+    if (!req.user || !req.user._id) {
+      console.log("getMyWorkGallery - req.user غير معرف أو لا يحتوي على _id");
+      return res
+        .status(401)
+        .json({ message: "غير مصرح لك بالوصول إلى هذا المورد" });
+    }
+
+    console.log(
+      "getMyWorkGallery - البحث عن الحرفي بمعرف المستخدم:",
+      req.user._id
+    );
+
     // البحث عن الحرفي باستخدام معرف المستخدم
     const craftsman = await Craftsman.findOne({ user: req.user._id }).select(
       "workGallery"
+    );
+
+    console.log(
+      "getMyWorkGallery - نتيجة البحث عن الحرفي:",
+      craftsman ? "تم العثور عليه" : "لم يتم العثور عليه"
     );
 
     if (!craftsman) {
@@ -126,97 +146,101 @@ exports.getMyWorkGallery = asyncHandler(async (req, res) => {
 /**
  * إضافة صور إلى معرض الأعمال
  */
+const { uploadToImgbb } = require("../services/imgbbService");
+
 exports.addToWorkGallery = asyncHandler(async (req, res) => {
   try {
     const { images } = req.body;
 
-    // التحقق من وجود الصور
     if (!images || !Array.isArray(images) || images.length === 0) {
       return res.status(400).json({ message: "يجب توفير صور صالحة" });
     }
 
-    // التحقق من صحة بيانات الصور (دعم كلا من strings و objects)
-    const validImages = images.filter((image) => {
-      if (typeof image === "string" && image.trim()) {
-        return true; // رابط مباشر
-      }
-      if (
-        typeof image === "object" &&
-        image &&
-        image.url &&
-        typeof image.url === "string"
-      ) {
-        return true; // كائن يحتوي على url
-      }
-      return false;
-    });
-
-    if (validImages.length === 0) {
-      return res.status(400).json({ message: "لا توجد صور صالحة للإضافة" });
-    }
-
     // البحث عن الحرفي
     const craftsman = await Craftsman.findOne({ user: req.user._id });
-
     if (!craftsman) {
       return res.status(404).json({ message: "لم يتم العثور على ملف الحرفي" });
     }
 
-    // التحقق من الحد الأقصى للصور (مثلاً 20 صورة)
+    // فلترة الصور وإعدادها للرفع
     const maxImages = 20;
-    const currentImageCount = craftsman.workGallery
-      ? craftsman.workGallery.length
-      : 0;
-
-    if (currentImageCount + validImages.length > maxImages) {
+    const currentImageCount = craftsman.workGallery ? craftsman.workGallery.length : 0;
+    if (currentImageCount + images.length > maxImages) {
       return res.status(400).json({
         message: `لا يمكن إضافة أكثر من ${maxImages} صورة. لديك حالياً ${currentImageCount} صورة`,
       });
     }
 
-    // إضافة الصور إلى المعرض
-    if (!craftsman.workGallery) {
-      craftsman.workGallery = [];
+    const imagesToAdd = [];
+    for (let i = 0; i < images.length; i++) {
+      let img = images[i];
+      // إذا كانت صورة base64 أو data:image
+      if (typeof img === "string" && img.startsWith("data:image")) {
+        try {
+          const base64 = img.split(",")[1];
+          const imgbbData = await uploadToImgbb(base64);
+          imagesToAdd.push({
+            id: imgbbData.id || `imgbb_${Date.now()}_${i}`,
+            url: imgbbData.url,
+            thumb: imgbbData.thumb_url || imgbbData.url,
+            medium: imgbbData.medium_url || imgbbData.url,
+            filename: imgbbData.title || `work-image-${Date.now()}-${i}.jpg`,
+            size: imgbbData.size || 0,
+            uploadedAt: new Date().toISOString(),
+            delete_url: imgbbData.delete_url || undefined,
+            extension: imgbbData.extension || undefined,
+          });
+        } catch (err) {
+          console.error("رفع imgbb فشل:", err);
+        }
+      } else if (typeof img === "string" && img.startsWith("http")) {
+        // إذا كان رابط imgbb فقط
+        if (/imgbb\.com|imgbb\.host|ibb\.co/.test(img)) {
+          imagesToAdd.push({
+            id: `img_${Date.now()}_${i}`,
+            url: img,
+            thumb: img,
+            medium: img,
+            filename: `work-image-${Date.now()}-${i}.jpg`,
+            size: 0,
+            uploadedAt: new Date().toISOString(),
+          });
+        }
+      } else if (typeof img === "object" && img.url && typeof img.url === "string") {
+        // إذا كان كائن فيه رابط imgbb فقط
+        if (/imgbb\.com|imgbb\.host|ibb\.co/.test(img.url)) {
+          imagesToAdd.push({
+            id: img.id || `img_${Date.now()}_${i}`,
+            url: img.url,
+            thumb: img.thumb || img.url,
+            medium: img.medium || img.url,
+            filename: img.filename || `work-image-${Date.now()}-${i}.jpg`,
+            size: img.size || 0,
+            uploadedAt: img.uploadedAt || new Date().toISOString(),
+          });
+        }
+      }
     }
 
-    // تحويل الصور إلى تنسيق موحد
-    const imagesToAdd = validImages.map((image, index) => {
-      if (typeof image === "string") {
-        return {
-          id: `img_${Date.now()}_${index}`,
-          url: image,
-          thumb: image,
-          medium: image,
-          filename: `work-image-${Date.now()}-${index}.jpg`,
-          size: 0,
-          uploadedAt: new Date().toISOString(),
-        };
-      } else {
-        return {
-          id: image.id || `img_${Date.now()}_${index}`,
-          url: image.url,
-          thumb: image.thumb || image.url,
-          medium: image.medium || image.url,
-          filename: image.filename || `work-image-${Date.now()}-${index}.jpg`,
-          size: image.size || 0,
-          uploadedAt: image.uploadedAt || new Date().toISOString(),
-        };
-      }
-    });
+    if (imagesToAdd.length === 0) {
+      return res.status(400).json({ message: "يجب رفع صور imgbb فقط" });
+    }
 
     craftsman.workGallery.push(...imagesToAdd);
-
-    // حفظ التغييرات
     await craftsman.save();
 
-    // تطبيع البيانات للإرجاع
+    // إرجاع الصور من imgbb فقط
     const normalizedGallery = exports.normalizeGalleryData(
-      craftsman.workGallery
+      craftsman.workGallery.filter(img => {
+        if (typeof img === "string") return /imgbb\.com|imgbb\.host|ibb\.co/.test(img);
+        if (typeof img === "object" && img.url) return /imgbb\.com|imgbb\.host|ibb\.co/.test(img.url);
+        return false;
+      })
     );
 
     res.json({
       success: true,
-      message: `تم إضافة ${validImages.length} صورة إلى معرض الأعمال`,
+      message: `تم إضافة ${imagesToAdd.length} صورة إلى معرض الأعمال (imgbb فقط)`,
       workGallery: normalizedGallery,
       addedImages: imagesToAdd,
       count: normalizedGallery.length,
