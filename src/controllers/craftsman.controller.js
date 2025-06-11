@@ -812,11 +812,13 @@ exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
     console.log("طلب الحصول على معرض الأعمال للحرفي:", {
       id: req.params.id,
       path: req.originalUrl,
+      route: req.route?.path,
+      user: req.user ? { id: req.user.id, _id: req.user._id } : "غير معرف",
     });
 
     // التحقق من نوع المعرف
-    if (req.params.id === "me") {
-      // إذا كان المعرف "me"، نبحث باستخدام معرف المستخدم الحالي
+    if (req.params.id === "me" || req.route.path === "/me/gallery") {
+      // إذا كان المعرف "me" أو المسار "/me/gallery"، نبحث باستخدام معرف المستخدم الحالي
       console.log(
         "البحث عن الحرفي الحالي باستخدام معرف المستخدم:",
         req.user._id || req.user.id

@@ -77,104 +77,17 @@ router.put(
 // Actualizar galería de trabajos
 router.put(
   "/me/gallery",
-  protect,
   authorize("craftsman"),
   [check("workGallery", "La galería debe ser un array").isArray()],
   craftsmanController.updateWorkGallery
 );
 
 // Obtener galería de trabajos del artesano actual
-router.get("/me/gallery", protect, authorize("craftsman"), async (req, res) => {
-  try {
-    // التحقق من وجود req.user
-    if (!req.user) {
-      console.error("req.user غير معرف في /me/gallery");
-      return res.status(401).json({
-        message: "Usuario no autenticado",
-        error: "req.user is undefined",
-      });
-    }
-
-    // Imprimir información de depuración del usuario
-    console.log("Usuario autenticado en /me/gallery:", {
-      id: req.user.id,
-      _id: req.user._id,
-      userKeys: Object.keys(req.user),
-    });
-
-    // Buscar perfil de artesano usando ambos formatos de ID
-    let craftsman = null;
-
-    // Primero intentar con req.user.id
-    if (req.user.id) {
-      craftsman = await Craftsman.findOne({ user: req.user.id });
-      if (craftsman) {
-        console.log("Craftsman encontrado con req.user.id");
-      }
-    }
-
-    // Si no se encuentra, intentar con req.user._id
-    if (!craftsman && req.user._id) {
-      craftsman = await Craftsman.findOne({ user: req.user._id });
-      if (craftsman) {
-        console.log("Craftsman encontrado con req.user._id");
-      }
-    }
-
-    if (!craftsman) {
-      console.log("Perfil de artesano no encontrado con ningún ID");
-      return res
-        .status(404)
-        .json({ message: "Perfil de artesano no encontrado" });
-    }
-
-    // Imprimir información de depuración
-    console.log("Craftsman encontrado en /me/gallery:", {
-      id: craftsman._id,
-      userId: craftsman.user,
-      requestUserId: req.user.id || req.user._id,
-      workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0,
-    });
-
-    // Filtrar URLs vacías o inválidas
-    const validGallery = Array.isArray(craftsman.workGallery)
-      ? craftsman.workGallery.filter(
-          (url) => url && url !== "undefined" && url !== "null"
-        )
-      : [];
-
-    console.log("Galería filtrada en /me/gallery:", {
-      original: craftsman.workGallery ? craftsman.workGallery.length : 0,
-      filtered: validGallery.length,
-    });
-
-    // Si hay diferencia entre la galería original y la filtrada, actualizar en la base de datos
-    if (
-      validGallery.length !==
-      (craftsman.workGallery ? craftsman.workGallery.length : 0)
-    ) {
-      console.log(
-        "Actualizando galería en la base de datos después de filtrar"
-      );
-      craftsman.workGallery = validGallery;
-      await craftsman.save();
-    }
-
-    // Devolver la galería con ambos nombres para compatibilidad
-    res.json({
-      gallery: validGallery,
-      workGallery: validGallery,
-    });
-  } catch (error) {
-    console.error("Error al obtener la galería:", error);
-    console.error("Detalles del error:", error.stack);
-    res.status(500).json({
-      message: "Error al obtener la galería",
-      error: error.message,
-      stack: error.stack,
-    });
-  }
-});
+router.get(
+  "/me/gallery",
+  authorize("craftsman"),
+  craftsmanController.getCraftsmanGallery
+);
 
 // Actualizar disponibilidad
 router.put(
