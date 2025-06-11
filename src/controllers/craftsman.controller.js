@@ -686,17 +686,28 @@ exports.updateWorkGallery = asyncHandler(async (req, res) => {
     }
   }
 
-  // Filtrar URLs vacías o inválidas
+  // تصفية البيانات الفارغة أو غير الصالحة
   const validGallery = Array.isArray(workGallery)
-    ? workGallery.filter((url) => url && url !== "undefined" && url !== "null")
+    ? workGallery.filter((item) => {
+        // إذا كان العنصر نص (URL)
+        if (typeof item === "string") {
+          return item && item !== "undefined" && item !== "null";
+        }
+        // إذا كان العنصر كائن
+        if (typeof item === "object" && item !== null) {
+          return item.url && item.url !== "undefined" && item.url !== "null";
+        }
+        return false;
+      })
     : [];
 
   console.log("Galería filtrada:", {
     original: workGallery ? workGallery.length : 0,
     filtered: validGallery.length,
+    sampleData: validGallery.slice(0, 2), // عرض أول عنصرين للتصحيح
   });
 
-  // Actualizar galería
+  // Actualizar galería - حفظ البيانات الكاملة (كائنات أو URLs)
   craftsman.workGallery = validGallery;
   await craftsman.save();
 
@@ -794,17 +805,34 @@ exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
       path: req.originalUrl,
     });
 
-    // أولاً نحاول البحث باستخدام معرف الحرفي
-    craftsman = await Craftsman.findById(req.params.id);
-
-    if (craftsman) {
-      console.log("تم العثور على الحرفي باستخدام معرف الحرفي");
-    } else {
+    // التحقق من نوع المعرف
+    if (req.params.id === "me") {
+      // إذا كان المعرف "me"، نبحث باستخدام معرف المستخدم الحالي
       console.log(
-        "لم يتم العثور على الحرفي باستخدام معرف الحرفي، محاولة البحث باستخدام معرف المستخدم"
+        "البحث عن الحرفي الحالي باستخدام معرف المستخدم:",
+        req.user._id || req.user.id
       );
-      // إذا لم نجد الحرفي، نحاول البحث باستخدام معرف المستخدم
-      craftsman = await Craftsman.findOne({ user: req.params.id });
+      craftsman = await Craftsman.findOne({
+        user: req.user._id || req.user.id,
+      });
+    } else {
+      // أولاً نحاول البحث باستخدام معرف الحرفي
+      try {
+        craftsman = await Craftsman.findById(req.params.id);
+        if (craftsman) {
+          console.log("تم العثور على الحرفي باستخدام معرف الحرفي");
+        }
+      } catch (error) {
+        console.log(
+          "خطأ في البحث باستخدام معرف الحرفي، محاولة البحث باستخدام معرف المستخدم"
+        );
+      }
+
+      if (!craftsman) {
+        console.log("محاولة البحث باستخدام معرف المستخدم");
+        // إذا لم نجد الحرفي، نحاول البحث باستخدام معرف المستخدم
+        craftsman = await Craftsman.findOne({ user: req.params.id });
+      }
     }
 
     if (!craftsman) {

@@ -27,7 +27,7 @@ exports.normalizeGalleryData = function normalizeGalleryData(galleryData) {
 
       // إذا كان العنصر object
       if (typeof item === "object" && item !== null) {
-        return {
+        const normalizedItem = {
           id: item.id || item._id || `object_${index}`,
           url: item.url || item.display_url || "",
           thumb: item.thumb || item.url || item.display_url || "",
@@ -36,6 +36,16 @@ exports.normalizeGalleryData = function normalizeGalleryData(galleryData) {
           size: item.size || 0,
           uploadedAt: item.uploadedAt || new Date().toISOString(),
         };
+
+        // إضافة معلومات إضافية من imgbb إذا كانت متوفرة
+        if (item.delete_url) {
+          normalizedItem.delete_url = item.delete_url;
+        }
+        if (item.extension) {
+          normalizedItem.extension = item.extension;
+        }
+
+        return normalizedItem;
       }
 
       // إذا كان العنصر غير صالح، تجاهله
