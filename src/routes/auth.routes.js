@@ -14,11 +14,19 @@ router.post(
       .isEmpty(),
     // Require either email or phone, and validate each if present
     check("email")
-      .optional({ nullable: true })
-      .isEmail().withMessage("يرجى إدخال بريد إلكتروني صالح"),
+      .custom((value) => {
+        if (!value || value.trim() === "") return true; // اعتبره غير موجود
+        // تحقق من صحة البريد الإلكتروني فقط إذا كان غير فارغ
+        return /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(value);
+      })
+      .withMessage("يرجى إدخال بريد إلكتروني صالح"),
     check("phone")
-      .optional({ nullable: true })
-      .matches(/^\+?\d{7,15}$/).withMessage("يرجى إدخال رقم هاتف صالح"),
+      .custom((value) => {
+        if (!value || value.trim() === "") return true; // اعتبره غير موجود
+        // تحقق من صحة رقم الهاتف فقط إذا كان غير فارغ
+        return /^\+?\d{7,15}$/.test(value);
+      })
+      .withMessage("يرجى إدخال رقم هاتف صالح"),
     // Custom validator: require at least one of email or phone
     (req, res, next) => {
       if (!req.body.email && !req.body.phone) {
