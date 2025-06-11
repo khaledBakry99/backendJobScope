@@ -129,15 +129,24 @@ exports.getMyWorkGallery = asyncHandler(async (req, res) => {
       return res.status(404).json({ message: "لم يتم العثور على ملف الحرفي لهذا المستخدم. تأكد من أن عملية التسجيل أنشأت كائن الحرفي بشكل صحيح." });
     }
 
-    // تطبيع البيانات للتوافق مع الفرونت إند
-    const normalizedGallery = exports.normalizeGalleryData(
-      craftsman.workGallery || []
-    );
-
+    // تحقق من وجود workGallery
+    if (typeof craftsman.workGallery === 'undefined') {
+      console.error("getMyWorkGallery - craftsman.workGallery غير معرف!", craftsman);
+      return res.status(500).json({ message: "ملف الحرفي لا يحتوي على workGallery!", craftsman });
+    }
+    console.log("getMyWorkGallery - محتوى workGallery:", craftsman.workGallery);
+    let normalizedGallery = [];
+    try {
+      normalizedGallery = exports.normalizeGalleryData(craftsman.workGallery);
+      console.log("getMyWorkGallery - normalizedGallery:", normalizedGallery);
+    } catch (err) {
+      console.error("getMyWorkGallery - خطأ أثناء معالجة normalizeGalleryData:", err, craftsman.workGallery);
+      return res.status(500).json({ message: "خطأ أثناء معالجة معرض الأعمال", error: err.message });
+    }
     res.json({
       success: true,
       workGallery: normalizedGallery,
-      gallery: normalizedGallery, // للتوافق مع الكود القديم
+      gallery: normalizedGallery,
       count: normalizedGallery.length,
     });
   } catch (error) {
