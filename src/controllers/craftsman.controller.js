@@ -816,6 +816,12 @@ exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
       user: req.user ? { id: req.user.id, _id: req.user._id } : "غير معرف",
     });
 
+    // تحقق من وجود req.user وصحة المعرف
+    if (!req.user || (!req.user._id && !req.user.id)) {
+      console.error("getCraftsmanGallery - req.user غير معرف أو لا يحتوي على _id أو id", req.user);
+      return res.status(401).json({ message: "غير مصرح لك بالوصول إلى هذا المورد (المستخدم غير معرف)" });
+    }
+
     // التحقق من نوع المعرف
     if (req.params.id === "me" || req.route.path === "/me/gallery") {
       // إذا كان المعرف "me" أو المسار "/me/gallery"، نبحث باستخدام معرف المستخدم الحالي
