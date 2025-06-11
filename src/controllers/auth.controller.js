@@ -16,8 +16,11 @@ const generateToken = (id, userType) => {
 
 // تسجيل مستخدم جديد
 exports.register = asyncHandler(async (req, res) => {
+  // طباعة محتوى الطلب بالكامل
+  console.log("[REGISTER] req.body:", JSON.stringify(req.body, null, 2));
   // التحقق من أخطاء التحقق
   const errors = validationResult(req);
+  console.log("[REGISTER] express-validator errors:", errors.array());
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
@@ -33,7 +36,7 @@ exports.register = asyncHandler(async (req, res) => {
   } = req.body;
 
   // طباعة البيانات المستلمة للتشخيص
-  console.log("Registration data received:", {
+  console.log("[REGISTER] Registration data received:", {
     name,
     email,
     phone,
@@ -45,6 +48,7 @@ exports.register = asyncHandler(async (req, res) => {
 
   // التحقق مما إذا كان المستخدم موجودًا بالفعل
   const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
+  console.log("[REGISTER] existingUser:", existingUser);
   if (existingUser) {
     return res.status(400).json({
       message:
@@ -109,6 +113,7 @@ exports.register = asyncHandler(async (req, res) => {
     // إذا كانت البيانات مرسلة في كائن craftsmanData
     if (req.body.craftsmanData) {
       craftsmanData = req.body.craftsmanData;
+      console.log("[REGISTER] craftsmanData object received:", JSON.stringify(craftsmanData, null, 2));
     } else {
       // إذا كانت البيانات مرسلة مباشرة في الطلب
       const {
@@ -126,13 +131,12 @@ exports.register = asyncHandler(async (req, res) => {
         location,
         bio,
       };
+      console.log("[REGISTER] craftsmanData flat fields:", JSON.stringify(craftsmanData, null, 2));
     }
-
-    // تأكد من أن موقع الحرفي يتم حفظه بشكل صحيح
     const location = craftsmanData.location || { lat: 33.5138, lng: 36.2765 }; // Damascus, Syria (default)
 
     // طباعة بيانات الحرفي للتأكد من استلامها بشكل صحيح
-    console.log("Craftsman data received:", {
+    console.log("[REGISTER] Craftsman data received:", {
       location: location,
       workRadius: craftsmanData.workRadius,
       streetsInWorkRange: craftsmanData.streetsInWorkRange,
