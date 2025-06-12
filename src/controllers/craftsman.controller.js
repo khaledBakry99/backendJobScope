@@ -804,86 +804,34 @@ exports.getStreetsInWorkRange = asyncHandler(async (req, res) => {
 });
 
 // الحصول على معرض أعمال الحرفي
+// الحصول على معرض أعمال الحرفي الحالي بشكل احترافي وموحد
 exports.getCraftsmanGallery = asyncHandler(async (req, res) => {
-  // يمكن أن يكون المعرف هو معرف المستخدم أو معرف الحرفي
-  let craftsman;
-
   try {
-    console.log("طلب الحصول على معرض الأعمال للحرفي:", {
-      id: req.params.id,
-      path: req.originalUrl,
-      route: req.route?.path,
-      user: req.user ? { id: req.user.id, _id: req.user._id } : "غير معرف",
-    });
-
-    // تحقق من وجود req.user وصحة المعرف
-    if (!req.user || (!req.user._id && !req.user.id)) {
-      console.error("getCraftsmanGallery - req.user غير معرف أو لا يحتوي على _id أو id", req.user);
+    // حماية: يجب أن يكون المستخدم معرفًا
+    if (!req.user || !req.user._id) {
+      console.error("getCraftsmanGallery - req.user غير معرف أو لا يحتوي على _id", req.user);
       return res.status(401).json({ message: "غير مصرح لك بالوصول إلى هذا المورد (المستخدم غير معرف)" });
     }
 
-    // التحقق من نوع المعرف
-    if (req.params.id === "me" || req.route.path === "/me/gallery") {
-      // إذا كان المعرف "me" أو المسار "/me/gallery"، نبحث باستخدام معرف المستخدم الحالي
-      console.log(
-        "البحث عن الحرفي الحالي باستخدام معرف المستخدم:",
-        req.user._id || req.user.id
-      );
-      craftsman = await Craftsman.findOne({
-        user: req.user._id || req.user.id,
-      });
-    } else {
-      // أولاً نحاول البحث باستخدام معرف الحرفي
-      try {
-        craftsman = await Craftsman.findById(req.params.id);
-        if (craftsman) {
-          console.log("تم العثور على الحرفي باستخدام معرف الحرفي");
-        }
-      } catch (error) {
-        console.log(
-          "خطأ في البحث باستخدام معرف الحرفي، محاولة البحث باستخدام معرف المستخدم"
-        );
-      }
-
-      if (!craftsman) {
-        console.log("محاولة البحث باستخدام معرف المستخدم");
-        // إذا لم نجد الحرفي، نحاول البحث باستخدام معرف المستخدم
-        craftsman = await Craftsman.findOne({ user: req.params.id });
-      }
-    }
-
+    // البحث عن الحرفي المرتبط بهذا المستخدم فقط
+    const craftsman = await Craftsman.findOne({ user: req.user._id });
     if (!craftsman) {
-      console.log("لم يتم العثور على الحرفي باستخدام أي من المعرفات");
-      return res.status(404).json({ message: "Artesano no encontrado" });
+      console.log("getCraftsmanGallery - لم يتم العثور على ملف الحرفي لهذا المستخدم!", req.user);
+      return res.status(404).json({ message: "لم يتم العثور على ملف الحرفي لهذا المستخدم. تأكد من أن عملية التسجيل أنشأت كائن الحرفي بشكل صحيح." });
     }
 
-    // طباعة معلومات التصحيح
-    console.log("تم العثور على الحرفي في getCraftsmanGallery:", {
-      id: craftsman._id,
-      userId: craftsman.user,
-      workGallery: craftsman.workGallery ? craftsman.workGallery.length : 0,
-    });
-
-    // استخدام دالة التطبيع من workGallery controller
+    // تطبيع بيانات المعرض
     const { normalizeGalleryData } = require("./workGallery.controller");
     const normalizedGallery = normalizeGalleryData(craftsman.workGallery || []);
-
-    console.log("معرض الصور بعد التطبيع:", {
-      original: craftsman.workGallery ? craftsman.workGallery.length : 0,
-      normalized: normalizedGallery.length,
-    });
-
-    // إرجاع معرض الأعمال مع دعم الاسمين (gallery و workGallery) للتوافق
     res.json({
       success: true,
-      gallery: normalizedGallery,
       workGallery: normalizedGallery,
       count: normalizedGallery.length,
     });
   } catch (error) {
     console.error("خطأ في الحصول على معرض الأعمال:", error);
     res.status(500).json({
-      message: "Error al obtener la galería",
+      message: "حدث خطأ أثناء جلب معرض الأعمال",
       error: error.message,
       stack: error.stack,
     });

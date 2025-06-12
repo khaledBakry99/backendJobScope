@@ -65,33 +65,20 @@ exports.normalizeGalleryData = function normalizeGalleryData(galleryData) {
 /**
  * الحصول على معرض أعمال الحرفي
  */
-exports.getWorkGallery = asyncHandler(async (req, res) => {
+// [احترافي] جلب معرض أعمال الحرفي الحالي فقط للمستخدم المسجل
+exports.getMyWorkGallery = asyncHandler(async (req, res) => {
   try {
-    const { craftsmanId } = req.params;
-
-    // التحقق من صحة معرف الحرفي
-    if (!mongoose.Types.ObjectId.isValid(craftsmanId)) {
-      return res.status(400).json({ message: "معرف الحرفي غير صالح" });
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: "غير مصرح لك بالوصول (المستخدم غير معرف)" });
     }
-
-    // البحث عن الحرفي
-    const craftsman = await Craftsman.findById(craftsmanId).select(
-      "workGallery"
-    );
-
+    const craftsman = await Craftsman.findOne({ user: req.user._id });
     if (!craftsman) {
-      return res.status(404).json({ message: "لم يتم العثور على الحرفي" });
+      return res.status(404).json({ message: "لم يتم العثور على ملف الحرفي لهذا المستخدم" });
     }
-
-    // تطبيع البيانات للتوافق مع الفرونت إند
-    const normalizedGallery = exports.normalizeGalleryData(
-      craftsman.workGallery || []
-    );
-
+    const normalizedGallery = exports.normalizeGalleryData(craftsman.workGallery || []);
     res.json({
       success: true,
       workGallery: normalizedGallery,
-      gallery: normalizedGallery, // للتوافق مع الكود القديم
       count: normalizedGallery.length,
     });
   } catch (error) {
@@ -101,14 +88,6 @@ exports.getWorkGallery = asyncHandler(async (req, res) => {
 });
 
 /**
- * الحصول على معرض أعمال الحرفي الحالي
- */
-exports.getMyWorkGallery = asyncHandler(async (req, res) => {
-  try {
-    console.log("getMyWorkGallery - req.user:", req.user);
-
-    // التحقق من وجود req.user
-    if (!req.user || !req.user._id) {
       console.log("getMyWorkGallery - req.user غير معرف أو لا يحتوي على _id");
       return res
         .status(401)

@@ -17,8 +17,9 @@ router.get("/:id", craftsmanController.getCraftsmanById);
 // Obtener las calles dentro del rango de trabajo de un artesano
 router.get("/:id/streets", craftsmanController.getStreetsInWorkRange);
 
-// Obtener galería de trabajos de un artesano
-router.get("/:id/gallery", craftsmanController.getCraftsmanGallery);
+// [تم التوحيد] جميع عمليات معرض الأعمال تتم عبر /me/gallery فقط مع حماية كاملة
+// إزالة المسار القديم نهائيًا
+//router.get("/:id/gallery", craftsmanController.getCraftsmanGallery);
 
 // Buscar artesanos
 router.post(
@@ -104,100 +105,34 @@ router.put(
   craftsmanController.updateStreetsInWorkRange
 );
 
-// Subir imágenes para la galería de trabajos
+// رفع صور معرض الأعمال للمستخدم الحالي فقط
+const workGalleryController = require("../controllers/workGallery.controller");
 router.post(
   "/me/upload-gallery",
   authorize("craftsman"),
   uploadMultipleImages("galleryImages", 5),
-  async (req, res) => {
-    try {
-      console.log("Solicitud de carga de imágenes recibida:", {
-        files: req.files ? req.files.length : 0,
-        userId: req.user.id || req.user._id,
-      });
+  workGalleryController.addToWorkGallery // يجب أن تدعم استقبال الصور من req.files أو req.body.images
+);
 
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ message: "No se han subido imágenes" });
-      }
+// حذف صورة من المعرض
+router.delete(
+  "/me/gallery",
+  authorize("craftsman"),
+  workGalleryController.removeFromWorkGallery
+);
 
-      // Generar URLs para las imágenes cargadas
-      const imageUrls = req.files.map((file) => `/uploads/${file.filename}`);
-      console.log("URLs de imágenes generadas:", imageUrls);
+// إعادة ترتيب المعرض
+router.put(
+  "/me/gallery/reorder",
+  authorize("craftsman"),
+  workGalleryController.reorderWorkGallery
+);
 
-      // Buscar el perfil del artesano
-      let craftsman = null;
-
-      // Primero intentar con req.user.id
-      if (req.user.id) {
-        craftsman = await Craftsman.findOne({ user: req.user.id });
-        if (craftsman) {
-          console.log("Craftsman encontrado con req.user.id");
-        }
-      }
-
-      // Si no se encuentra, intentar con req.user._id
-      if (!craftsman && req.user._id) {
-        craftsman = await Craftsman.findOne({ user: req.user._id });
-        if (craftsman) {
-          console.log("Craftsman encontrado con req.user._id");
-        }
-      }
-
-      if (!craftsman) {
-        console.log("Perfil de artesano no encontrado con ningún ID");
-        return res
-          .status(404)
-          .json({ message: "Perfil de artesano no encontrado" });
-      }
-
-      // Obtener la galería actual y asegurarse de que sea un array
-      let currentGallery = [];
-      if (craftsman.workGallery && Array.isArray(craftsman.workGallery)) {
-        // Filtrar URLs vacías o inválidas
-        currentGallery = craftsman.workGallery.filter(
-          (url) => url && url !== "undefined" && url !== "null"
-        );
-      }
-
-      console.log("Galería actual antes de la actualización:", {
-        currentGalleryLength: currentGallery.length,
-        currentGalleryItems: currentGallery,
-      });
-
-      // Combinar la galería actual con las nuevas imágenes
-      const updatedGallery = [...currentGallery, ...imageUrls];
-
-      console.log("Galería después de la actualización:", {
-        currentGallery: currentGallery.length,
-        newImages: imageUrls.length,
-        updatedGallery: updatedGallery.length,
-        updatedGalleryItems: updatedGallery,
-      });
-
-      // Guardar la galería actualizada
-      craftsman.workGallery = updatedGallery;
-      await craftsman.save();
-
-      console.log("Galería guardada en la base de datos:", {
-        savedGalleryLength: craftsman.workGallery.length,
-        savedGalleryItems: craftsman.workGallery,
-      });
-
-      // Devolver las URLs de las imágenes y la galería actualizada
-      res.json({
-        imageUrls,
-        gallery: craftsman.workGallery,
-        workGallery: craftsman.workGallery,
-      });
-    } catch (error) {
-      console.error("Error al subir imágenes:", error);
-      res.status(500).json({
-        message: "Error al subir imágenes",
-        error: error.message,
-        stack: error.stack,
-      });
-    }
-  }
+// مسح المعرض بالكامل
+router.delete(
+  "/me/gallery/clear",
+  authorize("craftsman"),
+  workGalleryController.clearWorkGallery
 );
 
 module.exports = router;
