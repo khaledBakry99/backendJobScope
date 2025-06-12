@@ -6,8 +6,7 @@ const workGalleryController = require("../controllers/workGallery.controller");
 
 // مسارات معرض الأعمال
 
-// الحصول على معرض أعمال حرفي محدد (عام - لا يحتاج مصادقة)
-router.get("/craftsman/:craftsmanId", workGalleryController.getWorkGallery);
+
 
 // الحصول على معرض أعمال الحرفي الحالي (يحتاج مصادقة)
 router.get(
