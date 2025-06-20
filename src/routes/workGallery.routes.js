@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { protect } = require("../middleware/authMiddleware");
+const { protect } = require("../middleware/auth.middleware");
 const { isCraftsman } = require("../middleware/roleMiddleware");
 const workGalleryController = require("../controllers/workGallery.controller");
 

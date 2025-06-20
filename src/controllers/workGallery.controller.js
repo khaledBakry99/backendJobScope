@@ -81,7 +81,43 @@ exports.normalizeGalleryData = function normalizeGalleryData(galleryData) {
 };
 
 /**
- * الحصول على معرض أعمال الحرفي
+ * الحصول على معرض أعمال حرفي محدد (عام - لا يحتاج مصادقة)
+ */
+exports.getWorkGallery = asyncHandler(async (req, res) => {
+  try {
+    const { craftsmanId } = req.params;
+
+    if (!craftsmanId) {
+      return res.status(400).json({ message: "معرف الحرفي مطلوب" });
+    }
+
+    // البحث عن الحرفي
+    const craftsman = await Craftsman.findById(craftsmanId).select(
+      "workGallery"
+    );
+
+    if (!craftsman) {
+      return res.status(404).json({ message: "لم يتم العثور على الحرفي" });
+    }
+
+    // تطبيع البيانات
+    const normalizedGallery = exports.normalizeGalleryData(
+      craftsman.workGallery || []
+    );
+
+    res.json({
+      success: true,
+      workGallery: normalizedGallery,
+      count: normalizedGallery.length,
+    });
+  } catch (error) {
+    console.error("خطأ في جلب معرض أعمال الحرفي:", error);
+    res.status(500).json({ message: "حدث خطأ أثناء جلب معرض أعمال الحرفي" });
+  }
+});
+
+/**
+ * الحصول على معرض أعمال الحرفي الحالي (يحتاج مصادقة)
  */
 // [احترافي] جلب معرض أعمال الحرفي الحالي فقط للمستخدم المسجل
 exports.getMyWorkGallery = asyncHandler(async (req, res) => {
