@@ -113,7 +113,10 @@ exports.register = asyncHandler(async (req, res) => {
     // إذا كانت البيانات مرسلة في كائن craftsmanData
     if (req.body.craftsmanData) {
       craftsmanData = req.body.craftsmanData;
-      console.log("[REGISTER] craftsmanData object received:", JSON.stringify(craftsmanData, null, 2));
+      console.log(
+        "[REGISTER] craftsmanData object received:",
+        JSON.stringify(craftsmanData, null, 2)
+      );
     } else {
       // إذا كانت البيانات مرسلة مباشرة في الطلب
       const {
@@ -131,7 +134,10 @@ exports.register = asyncHandler(async (req, res) => {
         location,
         bio,
       };
-      console.log("[REGISTER] craftsmanData flat fields:", JSON.stringify(craftsmanData, null, 2));
+      console.log(
+        "[REGISTER] craftsmanData flat fields:",
+        JSON.stringify(craftsmanData, null, 2)
+      );
     }
     const location = craftsmanData.location || { lat: 33.5138, lng: 36.2765 }; // Damascus, Syria (default)
 
@@ -436,8 +442,8 @@ const sendOTPBySMS = async (phone, otp) => {
       `Sending OTP ${otp} to phone ${phone} via Hypersender WhatsApp API`
     );
     const axios = require("axios");
-    const apiToken = "250|e2Lq3UqTPIzYJBYhdJviP1Zb066RBHuOCWtkj5eY90306903";
-    const instanceId = "9f07891d-21c4-42cd-9c7e-9e350170cf91"; // غيّرها إذا تغيرت
+    const apiToken = "348|yNWvDrANrOY4j48sQra4bkGsZ16y0oGpr9k5PrUi15f84a18";
+    const instanceId = "9f323941-f7e8-4845-a967-f849163cd110"; // غيّرها إذا تغيرت
     const apiUrl = `https://app.hypersender.com/api/whatsapp/v1/${instanceId}/send-text-safe`;
     // إزالة + إن وجدت، والتأكد من أن الرقم دولي فقط
     let phoneDigits = phone.startsWith("+") ? phone.slice(1) : phone;
@@ -518,33 +524,79 @@ exports.sendOtpToPhone = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "رقم الهاتف مطلوب" });
   }
 
-  // التحقق من صحة رقم الهاتف (سوري أو أمريكي)
-  if (phone.startsWith("+1") || phone.startsWith("1")) {
-    // التحقق من رقم الهاتف الأمريكي
-    // يجب أن يتكون من 10 أرقام (منطقة 3 أرقام + 7 أرقام) بعد رمز الدولة
-    const phoneWithoutCode = phone.replace(/^\+?1/, "").trim();
-    if (!/^\d{10}$/.test(phoneWithoutCode)) {
-      return res.status(400).json({ message: "رقم الهاتف الأمريكي غير صالح" });
+  // تنسيق رقم الهاتف السوري بجميع الصيغ المحتملة
+  function normalizePhone(p) {
+    if (!p) return "";
+    let phoneDigits = p.replace(/[^\d]/g, ""); // أرقام فقط
+
+    // إذا كان يبدأ بـ 963 (رمز سوريا)
+    if (phoneDigits.startsWith("963")) {
+      return "+" + phoneDigits;
     }
-  } else if (!/^(\+?963|0)?9\d{8}$/.test(phone)) {
-    // التحقق من رقم الهاتف السوري
-    return res.status(400).json({ message: "رقم الهاتف غير صالح" });
+
+    // إذا كان يبدأ بـ 0 (رقم محلي سوري)
+    if (phoneDigits.startsWith("0")) {
+      return "+963" + phoneDigits.slice(1);
+    }
+
+    // إذا كان يبدأ بـ 9 وطوله 9 أرقام (رقم سوري بدون رمز الدولة أو الصفر)
+    if (phoneDigits.length === 9 && phoneDigits.startsWith("9")) {
+      return "+963" + phoneDigits;
+    }
+
+    // إذا كان يبدأ بـ +963
+    if (p.startsWith("+963")) {
+      return p;
+    }
+
+    // إذا كان رقم أمريكي
+    if (phoneDigits.startsWith("1") && phoneDigits.length === 11) {
+      return "+" + phoneDigits;
+    }
+
+    return phoneDigits;
+  }
+
+  const normalizedPhone = normalizePhone(phone);
+
+  // التحقق من صحة رقم الهاتف
+  const isValidSyrianPhone = /^(\+?963|0)?9\d{8}$/.test(phone);
+  const isValidUSPhone =
+    phone.startsWith("+1") || (phone.startsWith("1") && phone.length === 11);
+
+  if (!isValidSyrianPhone && !isValidUSPhone) {
+    return res.status(400).json({
+      message: "رقم الهاتف غير صالح. يرجى إدخال رقم هاتف سوري صحيح",
+    });
   }
 
   // توليد رمز التحقق
   const otp = generateOTP();
 
-  // حفظ رمز التحقق في قاعدة البيانات
-  await OTP.findOneAndDelete({ identifier: phone }); // حذف أي رمز سابق
-  await OTP.create({ identifier: phone, otp });
+  // حفظ رمز التحقق في قاعدة البيانات مع جميع الصيغ المحتملة
+  const possiblePhones = [
+    phone,
+    normalizedPhone,
+    normalizedPhone.replace("+", ""),
+    normalizedPhone.startsWith("+963") ? "0" + normalizedPhone.slice(4) : "",
+  ].filter(Boolean);
+
+  // حذف أي رموز سابقة لجميع الصيغ
+  await OTP.deleteMany({ identifier: { $in: possiblePhones } });
+
+  // حفظ الرمز الجديد
+  await OTP.create({ identifier: normalizedPhone, otp });
+
+  console.log(`Sending OTP ${otp} to phone ${normalizedPhone}`);
 
   // إرسال رمز التحقق عبر رسالة نصية
-  const sent = await sendOTPBySMS(phone, otp);
+  const sent = await sendOTPBySMS(normalizedPhone, otp);
 
   if (sent) {
     res.json({
       success: true,
-      message: "تم إرسال رمز التحقق بنجاح إلى رقم هاتفك",
+      message: "تم إرسال رمز التحقق بنجاح إلى رقم هاتفك عبر WhatsApp",
+      phone: normalizedPhone,
     });
   } else {
     res.status(500).json({
@@ -1039,6 +1091,67 @@ exports.getSMSBalance = asyncHandler(async (req, res) => {
     res.status(500).json({
       success: false,
       message: "حدث خطأ أثناء الحصول على رصيد الحساب",
+      error: error.message,
+    });
+  }
+});
+
+// إعادة تعيين كلمة المرور
+exports.resetPassword = asyncHandler(async (req, res) => {
+  const { phone, newPassword } = req.body;
+
+  if (!phone || !newPassword) {
+    return res.status(400).json({
+      message: "رقم الهاتف وكلمة المرور الجديدة مطلوبان",
+    });
+  }
+
+  // تنسيق رقم الهاتف
+  function normalizePhone(p) {
+    if (!p) return "";
+    let phoneDigits = p.replace(/[^\d]/g, ""); // أرقام فقط
+    if (phoneDigits.startsWith("963")) return "+" + phoneDigits;
+    if (phoneDigits.startsWith("0")) return "+963" + phoneDigits.slice(1);
+    if (phoneDigits.length === 9 && phoneDigits.startsWith("9"))
+      return "+963" + phoneDigits;
+    return phoneDigits;
+  }
+
+  const normalizedPhone = normalizePhone(phone);
+
+  // البحث عن المستخدم بجميع الصيغ المحتملة لرقم الهاتف
+  const possiblePhones = [
+    phone,
+    normalizedPhone,
+    normalizedPhone.replace("+", ""),
+    normalizedPhone.startsWith("+963") ? "0" + normalizedPhone.slice(4) : "",
+  ].filter(Boolean);
+
+  try {
+    // البحث عن المستخدم
+    const user = await User.findOne({
+      phone: { $in: possiblePhones },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "المستخدم غير موجود",
+      });
+    }
+
+    // تحديث كلمة المرور
+    user.password = newPassword;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "تم تغيير كلمة المرور بنجاح",
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء إعادة تعيين كلمة المرور",
       error: error.message,
     });
   }

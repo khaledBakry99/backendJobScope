@@ -30,7 +30,9 @@ router.post(
     // Custom validator: require at least one of email or phone
     (req, res, next) => {
       if (!req.body.email && !req.body.phone) {
-        return res.status(400).json({ message: "يرجى إدخال البريد الإلكتروني أو رقم الهاتف" });
+        return res
+          .status(400)
+          .json({ message: "يرجى إدخال البريد الإلكتروني أو رقم الهاتف" });
       }
       next();
     },
@@ -122,5 +124,20 @@ router.post("/send-test-sms", authController.sendTestSMS);
 
 // الحصول على رصيد الحساب
 router.get("/sms-balance", authController.getSMSBalance);
+
+// إعادة تعيين كلمة المرور
+router.post(
+  "/reset-password",
+  [
+    check("phone", "رقم الهاتف مطلوب")
+      .not()
+      .isEmpty(),
+    check(
+      "newPassword",
+      "كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل"
+    ).isLength({ min: 6 }),
+  ],
+  authController.resetPassword
+);
 
 module.exports = router;

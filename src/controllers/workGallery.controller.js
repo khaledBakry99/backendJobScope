@@ -7,13 +7,22 @@ const mongoose = require("mongoose");
  */
 exports.normalizeGalleryData = function normalizeGalleryData(galleryData) {
   if (!Array.isArray(galleryData)) {
-    console.warn("normalizeGalleryData: galleryData ليس مصفوفة! القيمة:", galleryData);
+    console.warn(
+      "normalizeGalleryData: galleryData ليس مصفوفة! القيمة:",
+      galleryData
+    );
     return [];
   }
 
   return galleryData
     .map((item, index) => {
-      console.log(`normalizeGalleryData: معالجة العنصر رقم ${index}:`, item, "(النوع:", typeof item, ")");
+      console.log(
+        `normalizeGalleryData: معالجة العنصر رقم ${index}:`,
+        item,
+        "(النوع:",
+        typeof item,
+        ")"
+      );
       // إذا كان العنصر string (رابط مباشر)
       if (typeof item === "string") {
         return {
@@ -31,7 +40,10 @@ exports.normalizeGalleryData = function normalizeGalleryData(galleryData) {
       if (typeof item === "object" && item !== null) {
         // حماية إضافية: تأكد من وجود url أو display_url
         if (!item.url && !item.display_url) {
-          console.warn(`normalizeGalleryData: كائن بدون url أو display_url عند الفهرس ${index}:`, item);
+          console.warn(
+            `normalizeGalleryData: كائن بدون url أو display_url عند الفهرس ${index}:`,
+            item
+          );
           return null;
         }
         const normalizedItem = {
@@ -56,7 +68,13 @@ exports.normalizeGalleryData = function normalizeGalleryData(galleryData) {
       }
 
       // إذا كان العنصر غير صالح (null أو نوع غير متوقع)
-      console.warn(`normalizeGalleryData: عنصر غير متوقع عند الفهرس ${index}:`, item, "(النوع:", typeof item, ")");
+      console.warn(
+        `normalizeGalleryData: عنصر غير متوقع عند الفهرس ${index}:`,
+        item,
+        "(النوع:",
+        typeof item,
+        ")"
+      );
       return null;
     })
     .filter((item) => item !== null && item.url); // تصفية العناصر الفارغة
@@ -69,13 +87,19 @@ exports.normalizeGalleryData = function normalizeGalleryData(galleryData) {
 exports.getMyWorkGallery = asyncHandler(async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
-      return res.status(401).json({ message: "غير مصرح لك بالوصول (المستخدم غير معرف)" });
+      return res
+        .status(401)
+        .json({ message: "غير مصرح لك بالوصول (المستخدم غير معرف)" });
     }
     const craftsman = await Craftsman.findOne({ user: req.user._id });
     if (!craftsman) {
-      return res.status(404).json({ message: "لم يتم العثور على ملف الحرفي لهذا المستخدم" });
+      return res
+        .status(404)
+        .json({ message: "لم يتم العثور على ملف الحرفي لهذا المستخدم" });
     }
-    const normalizedGallery = exports.normalizeGalleryData(craftsman.workGallery || []);
+    const normalizedGallery = exports.normalizeGalleryData(
+      craftsman.workGallery || []
+    );
     res.json({
       success: true,
       workGallery: normalizedGallery,
@@ -162,11 +186,13 @@ exports.addToWorkGallery = asyncHandler(async (req, res) => {
     }
 
     // فلترة الصور وإعدادها للرفع
-    const maxImages = 20;
-    const currentImageCount = craftsman.workGallery ? craftsman.workGallery.length : 0;
+    const maxImages = 6;
+    const currentImageCount = craftsman.workGallery
+      ? craftsman.workGallery.length
+      : 0;
     if (currentImageCount + images.length > maxImages) {
       return res.status(400).json({
-        message: `لا يمكن إضافة أكثر من ${maxImages} صورة. لديك حالياً ${currentImageCount} صورة`,
+        message: `لا يمكن إضافة أكثر من ${maxImages} صور. لديك حالياً ${currentImageCount} صورة`,
       });
     }
 
@@ -205,7 +231,11 @@ exports.addToWorkGallery = asyncHandler(async (req, res) => {
             uploadedAt: new Date().toISOString(),
           });
         }
-      } else if (typeof img === "object" && img.url && typeof img.url === "string") {
+      } else if (
+        typeof img === "object" &&
+        img.url &&
+        typeof img.url === "string"
+      ) {
         // إذا كان كائن فيه رابط imgbb فقط
         if (/imgbb\.com|imgbb\.host|ibb\.co/.test(img.url)) {
           imagesToAdd.push({
@@ -230,9 +260,11 @@ exports.addToWorkGallery = asyncHandler(async (req, res) => {
 
     // إرجاع الصور من imgbb فقط
     const normalizedGallery = exports.normalizeGalleryData(
-      craftsman.workGallery.filter(img => {
-        if (typeof img === "string") return /imgbb\.com|imgbb\.host|ibb\.co/.test(img);
-        if (typeof img === "object" && img.url) return /imgbb\.com|imgbb\.host|ibb\.co/.test(img.url);
+      craftsman.workGallery.filter((img) => {
+        if (typeof img === "string")
+          return /imgbb\.com|imgbb\.host|ibb\.co/.test(img);
+        if (typeof img === "object" && img.url)
+          return /imgbb\.com|imgbb\.host|ibb\.co/.test(img.url);
         return false;
       })
     );
